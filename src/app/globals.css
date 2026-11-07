@@ -112,6 +112,14 @@
   }
 }
 
+/* Printing must never output hidden sections */
+@media print {
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
 /* Hero entrance: CSS only, so it works without JavaScript and is neutralised by the reduced-motion rule above */
 @keyframes hero-in {
   from { opacity: 0; transform: translateY(18px); }
