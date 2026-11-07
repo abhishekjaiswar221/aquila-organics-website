@@ -8,7 +8,7 @@ export function Hero({ data }: { data: HeroData }) {
   return (
     <section aria-labelledby="hero-title" className="relative overflow-hidden">
       <div className="mx-auto grid max-w-7xl gap-12 px-6 pb-20 pt-16 lg:grid-cols-12 lg:gap-8 lg:pb-32 lg:pt-28">
-        <div className="lg:col-span-7">
+        <div className="hero-in lg:col-span-7">
           <Eyebrow>{data.eyebrow}</Eyebrow>
           <h1 id="hero-title" className="text-display-xl mt-6">
             {data.headline}

@@ -10,6 +10,7 @@ import { Manufacturing } from "@/components/marketing/manufacturing";
 import { Segments } from "@/components/marketing/segments";
 import { Strengths } from "@/components/marketing/strengths";
 import { Sustainability } from "@/components/marketing/sustainability";
+import { Reveal } from "@/components/motion/reveal";
 import { visibleBlocks } from "@/content";
 import * as home from "@/content/home";
 import * as biz from "@/content/home-business";
@@ -32,26 +33,62 @@ export default function HomePage() {
   return (
     <>
       {hero ? <Hero data={hero.data} /> : null}
-      {intro ? <Intro data={intro.data} /> : null}
-      <Segments blocks={visibleBlocks(home.segmentBlocks)} />
-      <FragranceApplications
-        intro={fragIntro?.data}
-        applications={visibleBlocks(home.fragranceApplications)}
-        emphasis={oudh?.data}
-      />
-      {chem ? <AromaChemicals data={chem.data} toll={toll?.data.text} /> : null}
-      <Flavours
-        lead={flIntro?.data.lead}
-        applications={visibleBlocks(biz.flavourApplications)}
-        extra={flExtra?.data.text}
-      />
-      {mfg ? <Manufacturing data={mfg.data} /> : null}
-      {str ? <Strengths items={str.data.items} /> : null}
-      <Leadership leaders={visibleBlocks([biz.leadershipVaze, biz.leadershipHattali])} />
-      {sus ? <Sustainability data={sus.data} /> : null}
-      {reach ? <GlobalReach data={reach.data} /> : null}
+      {intro ? (
+        <Reveal>
+          <Intro data={intro.data} />
+        </Reveal>
+      ) : null}
+      <Reveal>
+        <Segments blocks={visibleBlocks(home.segmentBlocks)} />
+      </Reveal>
+      <Reveal>
+        <FragranceApplications
+          intro={fragIntro?.data}
+          applications={visibleBlocks(home.fragranceApplications)}
+          emphasis={oudh?.data}
+        />
+      </Reveal>
+      {chem ? (
+        <Reveal>
+          <AromaChemicals data={chem.data} toll={toll?.data.text} />
+        </Reveal>
+      ) : null}
+      <Reveal>
+        <Flavours
+          lead={flIntro?.data.lead}
+          applications={visibleBlocks(biz.flavourApplications)}
+          extra={flExtra?.data.text}
+        />
+      </Reveal>
+      {mfg ? (
+        <Reveal>
+          <Manufacturing data={mfg.data} />
+        </Reveal>
+      ) : null}
+      {str ? (
+        <Reveal>
+          <Strengths items={str.data.items} />
+        </Reveal>
+      ) : null}
+      <Reveal>
+        <Leadership leaders={visibleBlocks([biz.leadershipVaze, biz.leadershipHattali])} />
+      </Reveal>
+      {sus ? (
+        <Reveal>
+          <Sustainability data={sus.data} />
+        </Reveal>
+      ) : null}
+      {reach ? (
+        <Reveal>
+          <GlobalReach data={reach.data} />
+        </Reveal>
+      ) : null}
       {/* biz.certifications is status "hidden": intentionally not rendered until confirmed */}
-      {cta ? <EnquiryCta data={cta.data} /> : null}
+      {cta ? (
+        <Reveal>
+          <EnquiryCta data={cta.data} />
+        </Reveal>
+      ) : null}
     </>
   );
 }

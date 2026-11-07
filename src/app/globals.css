@@ -110,6 +110,13 @@
   }
 }
 
+/* Hero entrance: CSS only, so it works without JavaScript and is neutralised by the reduced-motion rule above */
+@keyframes hero-in {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+.hero-in { animation: hero-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
 /* Display type scale (headlines are always >= 20px) */
 .text-display-xl { font-family: var(--font-display), serif; font-size: clamp(3rem, 7vw, 6.5rem); line-height: 0.98; letter-spacing: -0.02em; font-weight: 400; }
 .text-display-lg { font-family: var(--font-display), serif; font-size: clamp(2.25rem, 4.5vw, 4rem); line-height: 1.02; letter-spacing: -0.015em; font-weight: 400; }
