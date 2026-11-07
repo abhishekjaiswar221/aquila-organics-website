@@ -70,3 +70,25 @@ export const primaryNav: NavItem[] = [
   { label: "Careers", href: "/careers", available: false },
   { label: "Contact", href: "/contact", available: false },
 ];
+
+/** The three business segments. Anchors point at homepage sections until segment pages ship. */
+export const segments = [
+  {
+    id: "fragrances",
+    label: "Fragrances",
+    anchor: "/#fragrances",
+    items: ["Fine Fragrance", "Personal Care", "Air Care", "Fabric Care", "Home Care", "Incense and Bakhoor"],
+  },
+  {
+    id: "aroma-chemicals",
+    label: "Aroma Chemicals",
+    anchor: "/#aroma-chemicals",
+    items: ["Custom manufacturing", "Process chemistry"],
+  },
+  {
+    id: "flavours",
+    label: "Flavours",
+    anchor: "/#flavours",
+    items: ["Confectionery", "Bakery", "Beverages", "Dairy", "Savoury"],
+  },
+] as const;

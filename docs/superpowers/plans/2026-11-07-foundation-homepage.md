@@ -22,7 +22,7 @@
 - Footer shows "Registered office" (Thane) and "Head office" (Navi Mumbai) as separate labelled addresses.
 - No secrets; `.env.example` placeholders only. No `any` unless unavoidable. No non-functional buttons or placeholder `#` links.
 - Respect `prefers-reduced-motion`. No horizontal overflow at 375/768/1280/1536 px.
-- Small commits per task; commit messages end with `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`.
+- Small commits per task. Commit messages carry no Co-Authored-By or other attribution trailer (owner instruction).
 
 ## Review Focus
 
