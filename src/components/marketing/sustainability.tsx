@@ -7,7 +7,7 @@ interface Props {
 /** Plain editorial treatment: no badges, no metrics we cannot source. */
 export function Sustainability({ data }: Props) {
   return (
-    <section id="sustainability" aria-label="Sustainability" className="bg-olive text-white">
+    <section id="sustainability" aria-label="Sustainability" className="bg-olive-deep text-white">
       <div className="mx-auto max-w-7xl px-6 py-20 lg:py-28">
         <SectionHeader eyebrow="Sustainability" title="Responsible by process, not by label." className="[&_p]:text-white [&_p:first-child]:text-white">
           <p>{data.lead}</p>

@@ -19,6 +19,12 @@ describe("contrastRatio", () => {
   it("ivory on charcoal passes AAA (dark sections)", () => {
     expect(contrastRatio(IVORY, "#24231F")).toBeGreaterThanOrEqual(7);
   });
+  it("white on deep olive passes AA (sustainability section)", () => {
+    expect(contrastRatio("#FFFFFF", "#5C6044")).toBeGreaterThanOrEqual(4.5);
+  });
+  it("white on raw olive fails AA, hence the deeper shade", () => {
+    expect(contrastRatio("#FFFFFF", "#777B5B")).toBeLessThan(4.5);
+  });
   it("records olive on ivory (informational ceiling for usage)", () => {
     const r = contrastRatio("#777B5B", IVORY);
     console.info(`olive on ivory = ${r.toFixed(2)}`);

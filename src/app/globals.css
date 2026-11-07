@@ -12,6 +12,7 @@
   --bronze: #a88958;
   --bronze-text: #7a5f33;
   --olive: #777b5b;
+  --olive-deep: #5c6044; /* white text on this is 6.54:1; use for olive sections with body text */
   --warm-grey: #b9b2a5;
   --white: #ffffff;
 
@@ -44,6 +45,7 @@
   --color-bronze: var(--bronze);
   --color-bronze-text: var(--bronze-text);
   --color-olive: var(--olive);
+  --color-olive-deep: var(--olive-deep);
   --color-warm-grey: var(--warm-grey);
   --color-white: var(--white);
 
