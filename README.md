@@ -22,6 +22,7 @@ npm run dev                  # http://localhost:3000
 | `npm run lint` | ESLint |
 | `npm run typecheck` | Generates route types, then `tsc --noEmit` |
 | `npm test` | Unit tests (Vitest) |
+| `npm run seed:admin` | Creates the first `SUPER_ADMIN` from `ADMIN_EMAIL` / `ADMIN_PASSWORD` (read from the environment or `.env`; password at least 12 characters). Idempotent: re-running leaves an existing user's password alone; add `-- --reset-password` to change it |
 | `npm run test:e2e` | Playwright at 375, 768, 1280 and 1536px (builds and serves on port 3100) |
 
 Playwright needs a browser once: `npx playwright install chromium`.
