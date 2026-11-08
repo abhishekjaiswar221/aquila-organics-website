@@ -7,7 +7,29 @@ import { env } from "@/lib/env";
 
 export const MIN_PASSWORD_LENGTH = 12;
 
-function createAuth() {
+/** How Better Auth finds the client IP (rate-limit key). */
+export type ClientIpConfig = {
+  /** Headers to read, in order. Better Auth default: ["x-forwarded-for"]. */
+  ipAddressHeaders?: string[];
+  /**
+   * Proxies that append to x-forwarded-for. With none, a header is trusted
+   * only when it holds exactly one address.
+   */
+  trustedProxies?: string[];
+};
+
+function clientIpConfigFromEnv(): ClientIpConfig {
+  return {
+    ipAddressHeaders: env.AUTH_IP_HEADER ? [env.AUTH_IP_HEADER] : undefined,
+    trustedProxies: env.AUTH_TRUSTED_PROXIES?.length ? env.AUTH_TRUSTED_PROXIES : undefined,
+  };
+}
+
+/**
+ * Builds a Better Auth instance. The app uses the lazy `auth` singleton below;
+ * tests call this directly to exercise other client-IP settings.
+ */
+export function createAuth(clientIp: ClientIpConfig = clientIpConfigFromEnv()) {
   return betterAuth({
     appName: "Aquila Organics",
     baseURL: env.BETTER_AUTH_URL,
@@ -44,6 +66,10 @@ function createAuth() {
     },
     advanced: {
       database: { generateId: "uuid" },
+      ipAddress: {
+        ...(clientIp.ipAddressHeaders && { ipAddressHeaders: clientIp.ipAddressHeaders }),
+        ...(clientIp.trustedProxies && { trustedProxies: clientIp.trustedProxies }),
+      },
       // Secure cookies are forced in production; elsewhere they follow the
       // base URL's protocol. Session cookies are always HTTP-only.
       useSecureCookies: process.env.NODE_ENV === "production" ? true : undefined,

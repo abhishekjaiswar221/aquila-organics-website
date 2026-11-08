@@ -10,6 +10,25 @@ export const secretEnvSchema = z.object({
   RATE_LIMIT_SALT: z.string().min(8),
   ADMIN_EMAIL: z.string().min(1).optional(),
   ADMIN_PASSWORD: z.string().min(1).optional(),
+  // Client IP for auth rate limiting (see README "Deployment: reverse proxy").
+  // Header the proxy overwrites with the real client IP; default x-forwarded-for.
+  AUTH_IP_HEADER: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[a-z0-9-]+$/)
+    .optional(),
+  // Comma-separated proxy IPs/CIDRs that append to x-forwarded-for.
+  AUTH_TRUSTED_PROXIES: z
+    .string()
+    .transform((value) =>
+      value
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean),
+    )
+    .pipe(z.array(z.union([z.ipv4(), z.ipv6(), z.cidrv4(), z.cidrv6()])))
+    .optional(),
 });
 
 export type Env = z.infer<typeof secretEnvSchema>;

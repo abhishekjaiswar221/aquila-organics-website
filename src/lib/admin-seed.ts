@@ -4,6 +4,17 @@ import { auth, MIN_PASSWORD_LENGTH } from "@/lib/auth";
 
 export class SeedInputError extends Error {}
 
+// Placeholder values are public (.env.example, docs), so a SUPER_ADMIN created
+// with one would have a known password. tests/unit/admin-seed.test.ts reads
+// .env.example to keep this list and the file in step.
+const PLACEHOLDER_PREFIXES = ["replace-with", "change-me", "changeme"];
+const PLACEHOLDER_VALUES = new Set(["replace-with-a-long-passphrase", "change-me"]);
+
+export function isPlaceholderPassword(password: string): boolean {
+  const value = password.trim().toLowerCase();
+  return PLACEHOLDER_VALUES.has(value) || PLACEHOLDER_PREFIXES.some((p) => value.startsWith(p));
+}
+
 const inputSchema = z.object({
   email: z
     .string({ error: "ADMIN_EMAIL is required." })
@@ -15,10 +26,13 @@ const inputSchema = z.object({
     .min(MIN_PASSWORD_LENGTH, {
       error: `ADMIN_PASSWORD must be at least ${MIN_PASSWORD_LENGTH} characters.`,
     })
-    .max(128, { error: "ADMIN_PASSWORD must be at most 128 characters." }),
+    .max(128, { error: "ADMIN_PASSWORD must be at most 128 characters." })
+    .refine((value) => !isPlaceholderPassword(value), {
+      error: "ADMIN_PASSWORD is a placeholder value; choose a real passphrase.",
+    }),
 });
 
-function parseInput(input: { email?: string; password?: string }) {
+export function parseSeedInput(input: { email?: string; password?: string }) {
   const result = inputSchema.safeParse(input);
   // Issue messages are ours and never echo the submitted values.
   if (!result.success) throw new SeedInputError(result.error.issues.map((i) => i.message).join(" "));
@@ -36,7 +50,7 @@ export async function createCredentialUser(input: {
   role: Role;
   name?: string;
 }): Promise<{ id: string }> {
-  const { email, password } = parseInput(input);
+  const { email, password } = parseSeedInput(input);
   const ctx = await auth.$context;
   const hash = await ctx.password.hash(password);
   const user = await ctx.internalAdapter.createUser(
@@ -76,7 +90,7 @@ export async function seedAdmin(input: {
   password?: string;
   resetPassword?: boolean;
 }): Promise<SeedResult> {
-  const { email, password } = parseInput(input);
+  const { email, password } = parseSeedInput(input);
   const ctx = await auth.$context;
   const existing = await ctx.internalAdapter.findUserByEmail(email, { includeAccounts: true });
   if (!existing) {

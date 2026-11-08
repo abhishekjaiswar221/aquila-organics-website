@@ -37,3 +37,28 @@ describe("parseEnv", () => {
     expect(keys.filter((k) => k.startsWith("NEXT_PUBLIC_"))).toEqual([]);
   });
 });
+
+describe("parseEnv client-IP settings", () => {
+  it("leaves both unset by default", () => {
+    const env = parseEnv(valid);
+    expect(env.AUTH_IP_HEADER).toBeUndefined();
+    expect(env.AUTH_TRUSTED_PROXIES).toBeUndefined();
+  });
+
+  it("parses a lower-cased header name and a comma-separated proxy list", () => {
+    const env = parseEnv({
+      ...valid,
+      AUTH_IP_HEADER: "CF-Connecting-IP",
+      AUTH_TRUSTED_PROXIES: " 10.0.0.1, 192.0.2.0/24 ,2001:db8::/32,",
+    });
+    expect(env.AUTH_IP_HEADER).toBe("cf-connecting-ip");
+    expect(env.AUTH_TRUSTED_PROXIES).toEqual(["10.0.0.1", "192.0.2.0/24", "2001:db8::/32"]);
+  });
+
+  it("rejects malformed values", () => {
+    expect(() => parseEnv({ ...valid, AUTH_TRUSTED_PROXIES: "10.0.0.1,not-an-ip" })).toThrowError(
+      /AUTH_TRUSTED_PROXIES/,
+    );
+    expect(() => parseEnv({ ...valid, AUTH_IP_HEADER: "x forwarded for" })).toThrowError(/AUTH_IP_HEADER/);
+  });
+});

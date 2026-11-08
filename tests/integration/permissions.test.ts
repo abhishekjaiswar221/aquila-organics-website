@@ -155,8 +155,8 @@ describe("public sign-up and role input", () => {
       { name: "Mallory", email: "mallory@example.test", password: "mallory-password-123", role: "SUPER_ADMIN" },
       "203.0.113.20",
     );
-    expect(res.status).toBeGreaterThanOrEqual(400);
-    expect(res.status).toBeLessThan(500);
+    // disabledPaths: the route is not served at all.
+    expect(res.status).toBe(404);
     expect(await db.user.count()).toBe(0);
   });
 
@@ -165,7 +165,7 @@ describe("public sign-up and role input", () => {
       auth.api.signUpEmail({
         body: { name: "Mallory", email: "mallory@example.test", password: "mallory-password-123" },
       }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ statusCode: 400, body: { code: "EMAIL_PASSWORD_SIGN_UP_DISABLED" } });
     expect(await db.user.count()).toBe(0);
   });
 
@@ -176,21 +176,30 @@ describe("public sign-up and role input", () => {
       role: "CONTENT_EDITOR",
     });
     const cookie = (await sessionHeadersFor("editor@example.test", "editor-password-123")).get("cookie");
-    const res = await auth.handler(
-      new Request("http://localhost:3000/api/auth/update-user", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          origin: "http://localhost:3000",
-          "x-forwarded-for": "203.0.113.21",
-          cookie: cookie ?? "",
-        },
-        body: JSON.stringify({ role: "SUPER_ADMIN" }),
-      }),
-    );
-    expect(res.status).toBeGreaterThanOrEqual(400);
+    const updateUser = (body: unknown) =>
+      auth.handler(
+        new Request("http://localhost:3000/api/auth/update-user", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            origin: "http://localhost:3000",
+            "x-forwarded-for": "203.0.113.21",
+            cookie: cookie ?? "",
+          },
+          body: JSON.stringify(body),
+        }),
+      );
+
+    const escalate = await updateUser({ role: "SUPER_ADMIN" });
+    expect(escalate.status).toBe(400);
+    expect(await escalate.json()).toMatchObject({ code: "FIELD_NOT_ALLOWED" });
+
+    // Control: the same session can update a permitted field.
+    const rename = await updateUser({ name: "Renamed Editor" });
+    expect(rename.status).toBe(200);
+
     const user = await db.user.findUniqueOrThrow({ where: { id } });
-    expect(user.role).toBe("CONTENT_EDITOR");
+    expect(user).toMatchObject({ role: "CONTENT_EDITOR", name: "Renamed Editor" });
   });
 });
 

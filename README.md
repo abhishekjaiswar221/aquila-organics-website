@@ -27,6 +27,17 @@ npm run dev                  # http://localhost:3000
 
 Playwright needs a browser once: `npx playwright install chromium`.
 
+### Deployment: reverse proxy and client IP
+
+The admin sign-in endpoint allows 5 attempts per minute for each client IP. That IP is read from `x-forwarded-for`, or from the header named in `AUTH_IP_HEADER`, such as `cf-connecting-ip`. If neither `AUTH_IP_HEADER` nor `AUTH_TRUSTED_PROXIES` is set, the header is trusted only when it holds exactly one address. Your proxy must therefore **overwrite** that header with the real client IP, not append to it. If your proxy appends instead, list its addresses or CIDRs in `AUTH_TRUSTED_PROXIES` (comma-separated).
+
+The risks of getting this wrong:
+
+- If the app can be reached without going through such a proxy, a client can send a different fake header on every request and guess passwords without limit.
+- If an appending proxy is not listed, every client whose header holds several addresses shares one bucket. About five requests a minute can then lock every admin out.
+
+The limiter stores its counts in memory in each server process. That is fine for a single instance. Running several instances needs a shared store.
+
 ## Layout
 
 ```
