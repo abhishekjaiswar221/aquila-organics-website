@@ -54,6 +54,10 @@ main()
   })
   .catch(async (error: unknown) => {
     console.error("import:products failed:", error instanceof Error ? error.message : error);
-    await db.$disconnect().catch(() => undefined);
+    try {
+      await db.$disconnect();
+    } catch {
+      // the client may never have been created (e.g. invalid environment)
+    }
     process.exit(1);
   });
