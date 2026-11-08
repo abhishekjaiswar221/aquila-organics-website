@@ -1,0 +1,118 @@
+[
+  {
+    "name": "Aldehyde C-16 (Strawberry Aldehyde)",
+    "category": "Aroma Chemicals",
+    "casNumber": "2756-56-1",
+    "sourceNote": "CAS as listed on legacy site; verify against datasheet before publishing. No datasheet listed; legacy product page /index.php/aldehyde-c-16."
+  },
+  {
+    "name": "Aqualis (Eq. to Kephalis)",
+    "category": "Aroma Chemicals",
+    "casNumber": "77-83-8",
+    "sourceNote": "CAS as listed on legacy site; verify against datasheet before publishing. Legacy datasheet: aquila---08-aqualis-kephalis.pdf. The listed CAS may not match this product name; check it."
+  },
+  {
+    "name": "Aquanile (Eq. to Peonile)",
+    "category": "Aroma Chemicals",
+    "casNumber": "36306-87-3",
+    "sourceNote": "CAS as listed on legacy site; verify against datasheet before publishing. Legacy datasheet: aquila---09-aquanile-peonile.pdf."
+  },
+  {
+    "name": "Aquatouch (Timber Touch)",
+    "category": "Aroma Chemicals",
+    "casNumber": "10461-98-0",
+    "sourceNote": "CAS as listed on legacy site; verify against datasheet before publishing. Legacy datasheet: aquila---10-aquatouch-timbertouch.pdf."
+  },
+  {
+    "name": "Aqua Vanill 80% DPG",
+    "category": "Aroma Chemicals",
+    "casNumber": "70788-30-6",
+    "sourceNote": "CAS as listed on legacy site; verify against datasheet before publishing. Legacy datasheet: aquila---11-aqua-vanill-80-dpg.pdf."
+  },
+  {
+    "name": "Citronellyl Tiglate",
+    "category": "Aroma Chemicals",
+    "sourceNote": "CAS as listed on legacy site; verify against datasheet before publishing. Legacy datasheet: aquila---13-citronellyl-tiglate1.pdf. CAS left empty: the legacy site lists a malformed value (\"2563 07 7\"). Confirm the CAS against the datasheet before publishing."
+  },
+  {
+    "name": "Geranyl Tiglate",
+    "category": "Aroma Chemicals",
+    "casNumber": "24717-85-9",
+    "sourceNote": "CAS as listed on legacy site; verify against datasheet before publishing. Legacy datasheet: aquila---14-geranyl-tiglate1.pdf."
+  },
+  {
+    "name": "Hydratropic Aldehyde",
+    "category": "Aroma Chemicals",
+    "casNumber": "7785-33-3",
+    "sourceNote": "CAS as listed on legacy site; verify against datasheet before publishing. Legacy datasheet: aquila---15-hydrotropic-aldehyde.pdf."
+  },
+  {
+    "name": "Hydratropic Alcohol",
+    "category": "Aroma Chemicals",
+    "sourceNote": "CAS as listed on legacy site; verify against datasheet before publishing. Legacy datasheet: aquila---16-hydrotropic-alcohol.pdf. CAS left empty: the legacy data gave the same CAS (1123-85-9) for this product and Iso Bornyl Propionate, which cannot both be right. Confirm against the datasheet before publishing."
+  },
+  {
+    "name": "Iso Bornyl Propionate",
+    "category": "Aroma Chemicals",
+    "sourceNote": "CAS as listed on legacy site; verify against datasheet before publishing. Legacy datasheet: aquila---17-iso-bornyl-propionate.pdf. CAS left empty: the legacy data gave the same CAS (1123-85-9) for this product and Hydratropic Alcohol, which cannot both be right. Confirm against the datasheet before publishing."
+  },
+  {
+    "name": "Inter Aldehyde C11 ISO",
+    "category": "Aroma Chemicals",
+    "casNumber": "1337-83-3",
+    "sourceNote": "CAS as listed on legacy site; verify against datasheet before publishing. Legacy datasheet: aquila---18-inter-aldehyde-c11-iso.pdf."
+  },
+  {
+    "name": "Liffarome",
+    "category": "Aroma Chemicals",
+    "casNumber": "67633-96-9",
+    "sourceNote": "CAS as listed on legacy site; verify against datasheet before publishing. Legacy datasheet: aquila---19-liffavert-liffarome.pdf."
+  },
+  {
+    "name": "Padma",
+    "category": "Aroma Chemicals",
+    "casNumber": "101-48-4",
+    "sourceNote": "CAS as listed on legacy site; verify against datasheet before publishing. Legacy datasheet: aquila---20-padma.pdf."
+  },
+  {
+    "name": "Phenyl Ethyl Methyl Ether (PEME)",
+    "category": "Aroma Chemicals",
+    "casNumber": "3558-60-9",
+    "sourceNote": "CAS as listed on legacy site; verify against datasheet before publishing. Legacy datasheet: aquila---21-peme.pdf."
+  },
+  {
+    "name": "Phenyl Ethyl Salicylate",
+    "category": "Aroma Chemicals",
+    "casNumber": "87-22-9",
+    "sourceNote": "CAS as listed on legacy site; verify against datasheet before publishing. Legacy datasheet: aquila---22-phenyl-ethyl-salicylate.pdf."
+  },
+  {
+    "name": "Phenyl Ethyl Cinnamate",
+    "category": "Aroma Chemicals",
+    "casNumber": "103-53-7",
+    "sourceNote": "CAS as listed on legacy site; verify against datasheet before publishing. Legacy datasheet: aquila---23-phenyl-ethyl-cinnamate.pdf."
+  },
+  {
+    "name": "Phenyl Ethyl Tiglate",
+    "category": "Aroma Chemicals",
+    "casNumber": "55719-85-2",
+    "sourceNote": "CAS as listed on legacy site; verify against datasheet before publishing. Legacy datasheet: aquila---24-phenyl-ethyl-tiglate.pdf."
+  },
+  {
+    "name": "Rhubafur (Rhoboxide)",
+    "category": "Aroma Chemicals",
+    "casNumber": "82461-14-1",
+    "sourceNote": "CAS as listed on legacy site; verify against datasheet before publishing. Legacy datasheet: aquila---25-rhubafur-rhuboxide.pdf."
+  },
+  {
+    "name": "Methyl Chloroacetate (MMCA)",
+    "category": "Chloroacetates",
+    "sourceNote": "CAS as listed on legacy site; verify against datasheet before publishing. Legacy SDS: MMCA-SDS.pdf; legacy product page /index.php/methyl-chloroacetate. CAS left empty: the legacy site gives three conflicting values (122-78-1 and 60-12-8 in the table, 96-34-4 on the product page) and the page text says \"ethyl\" in places, so the product identity is also in doubt. Confirm against the datasheet before publishing."
+  },
+  {
+    "name": "Ethyl Chloroacetate (ECA)",
+    "category": "Chloroacetates",
+    "casNumber": "105-39-5",
+    "sourceNote": "CAS as listed on legacy site; verify against datasheet before publishing. No datasheet listed; legacy product page /index.php/ethyl-chloroacetate."
+  }
+]
