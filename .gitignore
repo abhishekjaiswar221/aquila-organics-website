@@ -43,3 +43,8 @@ next-env.d.ts
 # local
 .superpowers/
 !.env.example
+
+/src/generated/prisma
+
+# local file uploads
+/storage/
