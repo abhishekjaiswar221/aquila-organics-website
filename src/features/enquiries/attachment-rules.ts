@@ -20,12 +20,6 @@ const EXTENSIONS: Record<string, { mimeType: string; kind: Kind }> = {
   csv: { mimeType: "text/csv", kind: "text" },
 };
 
-// Extensions that must not appear anywhere in the name (e.g. invoice.exe.pdf).
-const DANGEROUS = new Set([
-  "exe", "dll", "bat", "cmd", "com", "scr", "msi", "ps1", "vbs", "vbe", "js",
-  "jse", "jar", "sh", "php", "html", "htm", "svg", "hta", "lnk", "reg", "wsf",
-]);
-
 export type AttachmentResult =
   | { ok: true; mimeType: string; safeName: string }
   | { ok: false; reason: string };
@@ -59,11 +53,14 @@ function isCleanUtf8Text(bytes: Uint8Array): boolean {
   }
 }
 
-const CONTROL_CHARS = new RegExp("[\u0000-\u001f\u007f-\u009f\u2028\u2029]", "g");
+const CONTROL_CHARS = new RegExp(
+  "[\u0000-\u001f\u007f-\u009f\u200B-\u200F\u2028-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]",
+  "g",
+);
 
 function sanitiseName(raw: string): string {
   // Keep only the last path component, whichever separator was used.
-  const base = raw.split(/[\\/]/).pop() ?? "";
+  const base = raw.normalize("NFKC").split(/[\\/]/).pop() ?? "";
   return base
     .replace(CONTROL_CHARS, "")
     .replace(/[<>:"|?*]/g, "_")
@@ -93,11 +90,6 @@ export function validateAttachment(file: {
   const rule = Object.hasOwn(EXTENSIONS, ext) ? EXTENSIONS[ext] : undefined;
   if (!rule) return { ok: false, reason: "File type is not allowed" };
 
-  const parts = cleaned.slice(0, dot).split(".");
-  if (parts.some((p) => DANGEROUS.has(p.trim().toLowerCase()))) {
-    return { ok: false, reason: "File name is not allowed" };
-  }
-
   const sniffed = sniff(bytes);
   if (rule.kind === "text") {
     if (sniffed !== "other" || !isCleanUtf8Text(bytes)) {
@@ -120,6 +112,6 @@ export function validateAttachment(file: {
     .trim();
   if (!stem) stem = DEFAULT_STEM;
   const suffix = `.${ext}`;
-  stem = stem.slice(0, MAX_NAME_LENGTH - suffix.length).trim() || DEFAULT_STEM;
+  stem = [...stem].slice(0, MAX_NAME_LENGTH - suffix.length).join("").trim() || DEFAULT_STEM;
   return { ok: true, mimeType: rule.mimeType, safeName: `${stem}${suffix}` };
 }

@@ -37,7 +37,7 @@ export function escapeHtml(value: string): string {
 }
 
 // Header values must be single-line; CR/LF would allow header injection.
-const LINE_BREAKS = new RegExp("[\r\n\u2028\u2029]+", "g");
+const LINE_BREAKS = new RegExp("[\u0000\n\v\f\r\u0085\u2028\u2029]+", "g");
 function oneLine(value: string): string {
   return value.replace(LINE_BREAKS, " ").trim();
 }
