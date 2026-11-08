@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
+    "test:int": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test",
     "postinstall": "prisma generate",
     "db:up": "docker compose up -d --wait",
