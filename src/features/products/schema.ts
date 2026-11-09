@@ -12,12 +12,23 @@ export function slugify(input: string): string {
 }
 
 /**
+ * Slugs no product may have because a route segment under /aroma-chemicals
+ * already uses them (`documents` is /aroma-chemicals/documents/[id]).
+ */
+export const RESERVED_SLUGS: ReadonlySet<string> = new Set(["documents"]);
+
+export function isReservedSlug(slug: string): boolean {
+  return RESERVED_SLUGS.has(slug);
+}
+
+/**
  * Makes slugs unique within a list: the first keeps its slug, later duplicates
  * get -2, -3 ... Deterministic, and never collides with another slug in the list.
+ * A reserved slug counts as already used, so it is suffixed the same way.
  */
 export function assignUniqueSlugs(slugs: readonly string[]): string[] {
   const taken = new Set(slugs);
-  const used = new Set<string>();
+  const used = new Set<string>(RESERVED_SLUGS);
   return slugs.map((slug) => {
     if (!used.has(slug)) {
       used.add(slug);

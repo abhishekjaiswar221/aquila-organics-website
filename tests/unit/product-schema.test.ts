@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assignUniqueSlugs, productInputSchema, slugify } from "@/features/products/schema";
+import { assignUniqueSlugs, isReservedSlug, productInputSchema, slugify } from "@/features/products/schema";
 
 describe("slugify", () => {
   it("derives a lowercase kebab slug", () => {
@@ -24,6 +24,15 @@ describe("assignUniqueSlugs", () => {
 
   it("does not collide with an existing suffixed slug", () => {
     expect(assignUniqueSlugs(["a", "a", "a-2"])).toEqual(["a", "a-3", "a-2"]);
+  });
+
+  // /aroma-chemicals/documents/[id] is the document download route.
+  it("never hands out a reserved slug: 'documents' is suffixed like a duplicate", () => {
+    expect(isReservedSlug("documents")).toBe(true);
+    expect(isReservedSlug("documents-2")).toBe(false);
+    expect(assignUniqueSlugs(["documents"])).toEqual(["documents-2"]);
+    expect(assignUniqueSlugs(["documents", "documents"])).toEqual(["documents-2", "documents-3"]);
+    expect(assignUniqueSlugs(["documents", "documents-2"])).toEqual(["documents-3", "documents-2"]);
   });
 });
 

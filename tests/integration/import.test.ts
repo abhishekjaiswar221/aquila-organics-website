@@ -99,6 +99,13 @@ describe("importProducts behaviour", () => {
     expect(slugs).toEqual(["twin", "twin-2"]);
   });
 
+  it("never creates the reserved slug 'documents' (the document download route segment)", async () => {
+    const result = await importProducts([{ name: "Documents" }, { name: "TEST-Other", slug: "Documents" }], db);
+    expect(result.created).toBe(2);
+    const slugs = (await db.product.findMany({ orderBy: { slug: "asc" } })).map((p) => p.slug);
+    expect(slugs).toEqual(["documents-2", "documents-3"]);
+  });
+
   it("skips an existing verified product and writes none of its fields", async () => {
     await importProducts(
       [{ name: "Padma", casNumber: "101-48-4", category: "Original", description: "Hand written", sourceNote: "verified by client" }],
