@@ -2,28 +2,13 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { ROLES } from "@/lib/access";
+import { clientIpConfigFromEnv, type ClientIpConfig } from "@/lib/client-ip";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 
+export type { ClientIpConfig } from "@/lib/client-ip";
+
 export const MIN_PASSWORD_LENGTH = 12;
-
-/** How Better Auth finds the client IP (rate-limit key). */
-export type ClientIpConfig = {
-  /** Headers to read, in order. Better Auth default: ["x-forwarded-for"]. */
-  ipAddressHeaders?: string[];
-  /**
-   * Proxies that append to x-forwarded-for. With none, a header is trusted
-   * only when it holds exactly one address.
-   */
-  trustedProxies?: string[];
-};
-
-function clientIpConfigFromEnv(): ClientIpConfig {
-  return {
-    ipAddressHeaders: env.AUTH_IP_HEADER ? [env.AUTH_IP_HEADER] : undefined,
-    trustedProxies: env.AUTH_TRUSTED_PROXIES?.length ? env.AUTH_TRUSTED_PROXIES : undefined,
-  };
-}
 
 /**
  * Builds a Better Auth instance. The app uses the lazy `auth` singleton below;

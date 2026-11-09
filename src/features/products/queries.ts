@@ -212,6 +212,23 @@ export async function getPublishedProduct(slug: string): Promise<ProductDetail |
   }
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+
+export type EnquirableProduct ={ id: string; name: string; casNumber: string | null }
+
+/**
+ * Published products among `ids` (for RFQ lines and the enquiry list). Ids
+ * that are unknown, unpublished or not uuids are simply absent from the result.
+ */
+export async function getPublishedProductsByIds(ids: readonly string[]): Promise<EnquirableProduct[]> {
+  const unique = [...new Set(ids.map((id) => id.toLowerCase()))].filter((id) => UUID.test(id)).slice(0, 100)
+  if (unique.length === 0) return []
+  return db.product.findMany({
+    where: { AND: [PUBLIC, { id: { in: unique } }] },
+    select: { id: true, name: true, casNumber: true },
+  })
+}
+
 export async function getRelatedProducts(
   productId: string,
   limit: number,
