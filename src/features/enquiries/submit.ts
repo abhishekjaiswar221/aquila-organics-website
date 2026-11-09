@@ -22,6 +22,7 @@ import {
 import { getClientIp, hashIp } from "@/lib/client-ip";
 import { db } from "@/lib/db";
 import { getEmailProvider } from "@/lib/email";
+import { normaliseRecipientForLimit } from "@/lib/email-normalise";
 import { acknowledgementEmail, internalNotificationEmail, type EmailItem } from "@/lib/email/templates";
 import { env } from "@/lib/env";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -137,12 +138,14 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 }
 
 /**
- * Limiter key for the acknowledgement cap: a salted SHA-256 of the trimmed,
- * lowercased address, so the raw address is never stored in RateLimitHit.
+ * Limiter key for the acknowledgement cap: a salted SHA-256 of the address
+ * normalised to one form per inbox (case, whitespace, +tags, Gmail dots and
+ * googlemail.com), so variants share one quota. Neither the raw nor the
+ * normalised address is stored in RateLimitHit.
  */
 export function rfqAckLimitKey(email: string): string {
   const digest = createHash("sha256")
-    .update(`${env.RATE_LIMIT_SALT}:rfq-ack:${email.trim().toLowerCase()}`)
+    .update(`${env.RATE_LIMIT_SALT}:rfq-ack:${normaliseRecipientForLimit(email)}`)
     .digest("hex");
   return `rfq-ack:${digest}`;
 }

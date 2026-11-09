@@ -718,6 +718,34 @@ describe("acknowledgement limit per recipient", () => {
     expect(rfqAckLimitKey("JANE@TestFragrance.Example ")).toBe(rfqAckLimitKey(JANE));
   });
 
+  it("plus tags, Gmail dots and googlemail.com share one quota; mail still goes to the typed address", async () => {
+    const spies = silence();
+    const variants = ["victim+1@gmail.com", "v.ictim+2@googlemail.com", "VICTIM@gmail.com", "vic.tim+4@gmail.com"];
+    const refs: string[] = [];
+    for (const [i, email] of variants.entries()) {
+      loopIp(i);
+      const result = await submitRfq(form([freeLine()], { email }));
+      expect(result.ok).toBe(true);
+      if (result.ok) refs.push(result.reference);
+    }
+    const acks = state.sent.filter((m) => m.subject.startsWith("We received"));
+    expect(acks.map((m) => m.to)).toEqual([["victim+1@gmail.com"], ["v.ictim+2@googlemail.com"], ["VICTIM@gmail.com"]]);
+    const fourth = await db.enquiry.findUniqueOrThrow({ where: { reference: refs[3] }, include: { activities: true } });
+    expect(fourth.activities.find((a) => a.action === "email.skipped")?.detail).toEqual({ reason: "recipient limit" });
+    expect(fourth.email).toBe("vic.tim+4@gmail.com");
+
+    loopIp(9);
+    expect((await submitRfq(form([freeLine()], { email: "someone.else@gmail.com" }))).ok).toBe(true);
+    expect(acksTo("someone.else@gmail.com")).toHaveLength(1);
+
+    const rows = await ackRows();
+    expect(rows.map((r) => r.count).sort()).toEqual([1, 4]);
+    for (const row of rows) {
+      for (const part of ["victim", "gmail", "googlemail", "someone"]) expect(row.key).not.toContain(part);
+    }
+    expect(JSON.stringify([spies.warn.mock.calls, spies.error.mock.calls])).not.toContain("@");
+  });
+
   it("the limiter key is a salted hash: no raw address in RateLimitHit", async () => {
     useIp();
     await submitRfq(form([freeLine()]));
