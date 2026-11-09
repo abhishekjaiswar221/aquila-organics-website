@@ -10,7 +10,7 @@ const state = vi.hoisted(() => ({
   root: "",
   headers: new Headers(),
   sent: [] as EmailMessage[],
-  failEmail: false,
+  emailMode: "ok" as "ok" | "throw" | "hang",
 }));
 
 vi.mock("next/headers", () => ({
@@ -38,7 +38,8 @@ vi.mock("@/lib/email", async (importOriginal) => {
     ...original,
     getEmailProvider: () => ({
       send: async (msg: EmailMessage) => {
-        if (state.failEmail) throw new Error("SMTP refused for jane@testfragrance.example");
+        if (state.emailMode === "hang") return new Promise<void>(() => {});
+        if (state.emailMode === "throw") throw new Error("SMTP refused for jane@testfragrance.example");
         state.sent.push(msg);
       },
     }),
@@ -49,6 +50,9 @@ const { submitRfq } = await import("@/features/enquiries/actions");
 const { getStorage } = await import("@/lib/storage");
 const { hashIp } = await import("@/lib/client-ip");
 const { env } = await import("@/lib/env");
+const { rfqTesting, RFQ_RATE_LIMIT, RFQ_UNRESOLVED_IP_RATE_LIMIT, RFQ_RATE_WINDOW_MS } = await import(
+  "@/features/enquiries/submit"
+);
 
 const YEAR = new Date().getUTCFullYear();
 const UA = `TEST-Agent/1.0 ${"x".repeat(400)}`;
@@ -143,7 +147,8 @@ beforeEach(async () => {
   await resetDb();
   await rm(state.root, { recursive: true, force: true });
   state.sent = [];
-  state.failEmail = false;
+  state.emailMode = "ok";
+  rfqTesting.reset();
   seq = 0;
   // Every test configures recipients for the type it expects, so the
   // "no recipients" warning is only silenced where it is asserted.
@@ -231,6 +236,7 @@ describe("submitRfq", () => {
   });
 
   it("the 6th submission from one IP within the hour is refused; another IP still works", async () => {
+    expect(RFQ_RATE_LIMIT).toBe(5);
     const ip = useIp();
     for (let i = 0; i < 5; i++) {
       state.headers = new Headers({ "x-forwarded-for": ip });
@@ -291,6 +297,19 @@ describe("submitRfq", () => {
     );
     expect(errors.email[0]).toEqual(expect.any(String));
     await expectNothingStored();
+    // Junk that fails field validation never consumes the rate-limit bucket.
+    expect(await db.rateLimitHit.count()).toBe(0);
+  });
+
+  it("invalid-field submissions do not use up a visitor's limit", async () => {
+    const ip = useIp();
+    for (let i = 0; i < 8; i++) {
+      state.headers = new Headers({ "x-forwarded-for": ip });
+      expect((await submitRfq(form([freeLine()], { email: "nope" }))).ok).toBe(false);
+    }
+    state.headers = new Headers({ "x-forwarded-for": ip });
+    expect((await submitRfq(form([freeLine()]))).ok).toBe(true);
+    expect((await db.rateLimitHit.findFirstOrThrow()).count).toBe(1);
   });
 
   it("returns the free-mail hint as a warning on success", async () => {
@@ -432,7 +451,7 @@ describe("submitRfq", () => {
 
   it("an email provider that throws still succeeds and records email.failed without addresses", async () => {
     const spies = silence();
-    state.failEmail = true;
+    state.emailMode = "throw";
     useIp();
     const result = await submitRfq(form([freeLine()]));
     expect(result.ok).toBe(true);
@@ -500,6 +519,128 @@ describe("submitRfq", () => {
     expect((await db.enquiry.findFirstOrThrow()).ipHash).toBeNull();
     const [hit] = await db.rateLimitHit.findMany();
     expect(hit.key).toBe("rfq:no-trusted-ip");
-    expect(spies.warn).toHaveBeenCalled();
+    // Outside production nothing is logged.
+    expect(spies.warn).not.toHaveBeenCalled();
+  });
+
+  it("the shared unresolved-IP bucket allows 100 an hour, not 5", async () => {
+    expect(RFQ_UNRESOLVED_IP_RATE_LIMIT).toBe(100);
+    const now = Date.now();
+    const windowStart = new Date(Math.floor(now / RFQ_RATE_WINDOW_MS) * RFQ_RATE_WINDOW_MS);
+    // Seed the bucket near its cap instead of looping 100 real submissions.
+    await db.rateLimitHit.create({
+      data: { key: "rfq:no-trusted-ip", windowStart, count: RFQ_UNRESOLVED_IP_RATE_LIMIT - 2 },
+    });
+    const unresolved = () => {
+      state.headers = new Headers({ "x-forwarded-for": "203.0.113.50, 198.51.100.99" });
+    };
+    unresolved();
+    expect((await submitRfq(form([freeLine()]))).ok).toBe(true);
+    unresolved();
+    expect((await submitRfq(form([freeLine()]))).ok).toBe(true);
+    unresolved();
+    expect(await submitRfq(form([freeLine()]))).toEqual({
+      ok: false,
+      errors: { form: "Too many requests. Please try again later." },
+    });
+    // A visitor with a resolvable IP has their own bucket.
+    useIp();
+    expect((await submitRfq(form([freeLine()]))).ok).toBe(true);
+  });
+
+  it("in production, warns once per process when no IP header config exists and the IP is unresolved", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    try {
+      const spies = silence();
+      for (let i = 0; i < 3; i++) {
+        state.headers = new Headers({ "x-forwarded-for": "203.0.113.50, 198.51.100.99" });
+        expect((await submitRfq(form([freeLine()]))).ok).toBe(true);
+      }
+      expect(spies.warn).toHaveBeenCalledTimes(1);
+      const message = String(spies.warn.mock.calls[0][0]);
+      expect(message).toContain("AUTH_IP_HEADER");
+      expect(message).toContain("shared");
+      expect(message).not.toMatch(/@|203\.0\.113|198\.51\.100/);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});
+
+describe("submitRfq idempotency (submissionId)", () => {
+  const TOKEN = "5a4b3c2d-1e0f-4a9b-8c7d-6e5f4a3b2c1d";
+
+  it("the same submissionId twice creates one enquiry, one set of emails, no second files", async () => {
+    useIp();
+    const first = await submitRfq(form([freeLine()], { submissionId: TOKEN }, [pdf()]));
+    expect(first.ok).toBe(true);
+    const filesAfterFirst = await storedFiles();
+    const sentAfterFirst = state.sent.length;
+    const hitsAfterFirst = (await db.rateLimitHit.findFirstOrThrow()).count;
+
+    const second = await submitRfq(form([freeLine()], { submissionId: TOKEN }, [pdf()]));
+    expect(second).toEqual(first.ok ? { ok: true, reference: first.reference, droppedProducts: [], warnings: {} } : null);
+    expect(await db.enquiry.count()).toBe(1);
+    expect(await db.enquiryAttachment.count()).toBe(1);
+    expect(await storedFiles()).toEqual(filesAfterFirst);
+    expect(state.sent.length).toBe(sentAfterFirst);
+    // A replay is not counted against the rate limit.
+    expect((await db.rateLimitHit.findFirstOrThrow()).count).toBe(hitsAfterFirst);
+    expect((await db.enquiry.findFirstOrThrow()).submissionId).toBe(TOKEN);
+  });
+
+  it("three concurrent posts with one submissionId create exactly one enquiry; losers' files removed", async () => {
+    const ip = useIp();
+    const results = await Promise.all(
+      [1, 2, 3].map(async () => {
+        state.headers = new Headers({ "x-forwarded-for": ip });
+        return submitRfq(form([freeLine()], { submissionId: TOKEN }, [pdf()]));
+      }),
+    );
+    const refs = results.map((r) => (r.ok ? r.reference : "failed"));
+    expect(new Set(refs).size).toBe(1);
+    expect(refs[0]).toMatch(/^AQ-\d{4}-\d{6}$/);
+    expect(await db.enquiry.count()).toBe(1);
+    const rows = await db.enquiryAttachment.findMany();
+    expect(rows).toHaveLength(1);
+    expect(await storedFiles()).toEqual([rows[0].storageKey]);
+    // Emails only for the winner.
+    expect(state.sent).toHaveLength(2);
+  });
+
+  it("different submissionIds create separate enquiries", async () => {
+    useIp();
+    await submitRfq(form([freeLine()], { submissionId: TOKEN }));
+    await submitRfq(form([freeLine()], { submissionId: "6b5c4d3e-2f1a-4b0c-9d8e-7f6a5b4c3d2e" }));
+    expect(await db.enquiry.count()).toBe(2);
+  });
+
+  it("without a submissionId, posting twice creates two enquiries", async () => {
+    useIp();
+    await submitRfq(form([freeLine()]));
+    await submitRfq(form([freeLine()]));
+    expect(await db.enquiry.count()).toBe(2);
+    expect((await db.enquiry.findFirstOrThrow()).submissionId).toBeNull();
+  });
+});
+
+describe("email timeout", () => {
+  it("an email provider that never resolves times out, records email.failed, still succeeds", async () => {
+    const spies = silence();
+    rfqTesting.setEmailTimeoutMs(50);
+    state.emailMode = "hang";
+    useIp();
+    const started = Date.now();
+    const result = await submitRfq(form([freeLine()]));
+    expect(Date.now() - started).toBeLessThan(3000);
+    expect(result.ok).toBe(true);
+    const failed = await db.enquiryActivity.findMany({ where: { action: "email.failed" } });
+    expect(failed).toHaveLength(2);
+    expect(JSON.stringify(failed.map((a) => a.detail))).toContain("timed out");
+    expect(spies.error).toHaveBeenCalled();
+  });
+
+  it("defaults to an 8 second email timeout", () => {
+    expect(rfqTesting.emailTimeoutMs()).toBe(8000);
   });
 });

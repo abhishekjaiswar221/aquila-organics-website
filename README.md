@@ -38,6 +38,19 @@ The risks of getting this wrong:
 
 The limiter stores its counts in memory in each server process. That is fine for a single instance. Running several instances needs a shared store.
 
+The RFQ form (`/rfq`) has its own limiter, using the same header rules:
+
+- **Storage.** Counts live in the database (`RateLimitHit`), so they are shared by every instance. The key is a salted hash of the IP (`RATE_LIMIT_SALT`), never the raw address.
+- **Per-visitor limit.** 5 submissions per hour for each client IP that can be resolved.
+- **Shared fallback.** When no trustworthy IP can be resolved, every such request shares one bucket of 100 submissions per hour. The causes:
+  - no proxy sets the header;
+  - the header holds several addresses and no `AUTH_TRUSTED_PROXIES` are listed;
+  - an appending proxy is not listed.
+
+  One busy source can then use up the bucket for everyone, so configure the header. In production, the server logs one warning per process when this happens and neither `AUTH_IP_HEADER` nor `AUTH_TRUSTED_PROXIES` is set.
+- **What counts.** Submissions with invalid fields do not count, and neither do honeypot hits or replays of an already-stored submission (same `submissionId`).
+- **Not pruned yet.** Old `RateLimitHit` rows are not cleaned up. Delete rows with an old `windowStart` periodically until a cleanup job exists.
+
 ## Layout
 
 ```

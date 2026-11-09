@@ -144,6 +144,15 @@ export const rfqSchema = z.object({
   intendedApplication: optionalText("Intended application", TEXT_LIMITS.intendedApplication),
   additionalRequirements: optionalText("Additional requirements", TEXT_LIMITS.additionalRequirements),
   consent: z.literal(true, { error: "Please agree to the privacy notice to continue" }),
+  /**
+   * Idempotency token: one random uuid per form instance (crypto.randomUUID()).
+   * Re-posting the same token returns the original reference.
+   */
+  submissionId: z
+    .string()
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v.trim().toLowerCase() || undefined))
+    .pipe(z.uuid({ error: "Invalid submission, please reload the page" }).optional()),
   /** Honeypot: hidden from people; a bot that fills it is "accepted" and discarded. */
   website: z.string().optional(),
   items: z
@@ -229,6 +238,7 @@ const SCALAR_FIELDS = [
   "businessSegment",
   "intendedApplication",
   "additionalRequirements",
+  "submissionId",
   HONEYPOT_FIELD,
 ] as const;
 const ITEM_FIELDS = ["productId", "name", "quantity", "unit", "notes"] as const;

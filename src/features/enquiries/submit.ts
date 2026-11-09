@@ -30,19 +30,28 @@ import { getStorage } from "@/lib/storage";
 /**
  * RFQ submission, called by the submitRfq server action (actions.ts).
  *
- * Order: parse -> honeypot -> rate limit -> validate fields and attachments ->
- * resolve product lines (published only) -> write attachment files -> one
- * transaction for enquiry, items, attachment rows and the creation activity
- * -> best-effort emails.
+ * Order: parse -> honeypot -> field validation (no DB, no file reading) ->
+ * replay check (submissionId) -> rate limit -> attachments -> resolve product
+ * lines (published only) -> write attachment files -> one transaction for
+ * enquiry, items, attachment rows and the creation activity -> best-effort
+ * emails. Honeypot hits, invalid fields and replays never touch the limiter.
  *
- * Files are written BEFORE the transaction and deleted again if it fails, so a
- * stored EnquiryAttachment row always points at a file that exists. The worst
- * case (the process dies between the two steps) is an unreferenced file, never
- * a dangling row.
+ * Files are written BEFORE the transaction and deleted again if it fails (or
+ * loses a submissionId race), so a stored EnquiryAttachment row always points
+ * at a file that exists. The worst case (the process dies between the two
+ * steps) is an unreferenced file, never a dangling row.
  */
 
+/** Per resolved client IP (salted hash), per window. */
 export const RFQ_RATE_LIMIT = 5;
+/**
+ * Shared ceiling for every request whose client IP cannot be trusted (no
+ * proxy header, or an appending proxy not listed in AUTH_TRUSTED_PROXIES).
+ * Higher than the per-IP limit so one abuser cannot lock everyone out.
+ */
+export const RFQ_UNRESOLVED_IP_RATE_LIMIT = 100;
 export const RFQ_RATE_WINDOW_MS = 60 * 60 * 1000;
+export const RFQ_EMAIL_TIMEOUT_MS = 8_000;
 const NO_TRUSTED_IP = "no-trusted-ip";
 const MAX_USER_AGENT = 200;
 const MAX_RECIPIENTS = 20;
@@ -81,6 +90,53 @@ function describeError(err: unknown): string {
 }
 
 let warnedNoIp = false;
+let emailTimeoutMs = RFQ_EMAIL_TIMEOUT_MS;
+
+/** Test hooks only: shorten the email timeout, reset once-per-process state. */
+export const rfqTesting = {
+  setEmailTimeoutMs(ms: number) {
+    emailTimeoutMs = ms;
+  },
+  emailTimeoutMs: () => emailTimeoutMs,
+  reset() {
+    warnedNoIp = false;
+    emailTimeoutMs = RFQ_EMAIL_TIMEOUT_MS;
+  },
+};
+
+class EmailTimeoutError extends Error {
+  constructor(ms: number) {
+    super(`Email send timed out after ${ms} ms`);
+    this.name = "EmailTimeoutError";
+  }
+}
+
+/** The provider has no AbortSignal support; a timed-out send is abandoned. */
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new EmailTimeoutError(ms)), ms);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function warnUnresolvedIpOnce(): void {
+  if (warnedNoIp || process.env.NODE_ENV !== "production") return;
+  if (env.AUTH_IP_HEADER || env.AUTH_TRUSTED_PROXIES?.length) return;
+  warnedNoIp = true;
+  console.warn(
+    "[rfq] No trusted client IP: neither AUTH_IP_HEADER nor AUTH_TRUSTED_PROXIES is set and the request had no " +
+      `single-address x-forwarded-for. All such RFQs use one shared rate-limit bucket of ${RFQ_UNRESOLVED_IP_RATE_LIMIT} ` +
+      `per hour instead of a per-visitor limit of ${RFQ_RATE_LIMIT}, so heavy use from one source can ` +
+      'block other visitors. See README "Deployment: reverse proxy and client IP".',
+  );
+}
 
 /** The enquiry type routes the internal notification. */
 export function deriveEnquiryType(segment: BusinessSegment, allCatalogueProducts: boolean): EnquiryType {
@@ -188,7 +244,31 @@ type EnquiryRecord = {
   userAgent: string | null;
 };
 
-async function createEnquiry(record: EnquiryRecord): Promise<{ id: string; reference: string }> {
+/** Reference of the enquiry already stored under this idempotency token, if any. */
+async function existingReference(submissionId: string | undefined): Promise<string | null> {
+  if (!submissionId) return null;
+  const found = await db.enquiry.findUnique({ where: { submissionId }, select: { reference: true } });
+  return found?.reference ?? null;
+}
+
+type CreateOutcome =
+  | { kind: "created"; id: string; reference: string }
+  | { kind: "duplicate"; reference: string };
+
+async function createEnquiry(record: EnquiryRecord): Promise<CreateOutcome> {
+  try {
+    return { kind: "created", ...(await insertEnquiry(record)) };
+  } catch (err) {
+    // The unique index on submissionId arbitrates concurrent replays.
+    if (isUniqueViolation(err)) {
+      const reference = await existingReference(record.data.submissionId);
+      if (reference) return { kind: "duplicate", reference };
+    }
+    throw err;
+  }
+}
+
+async function insertEnquiry(record: EnquiryRecord): Promise<{ id: string; reference: string }> {
   const year = new Date().getUTCFullYear();
   const prefix = `AQ-${year}-`;
   for (let attempt = 1; ; attempt++) {
@@ -207,6 +287,7 @@ async function createEnquiry(record: EnquiryRecord): Promise<{ id: string; refer
           return tx.enquiry.create({
             data: {
               reference,
+              submissionId: data.submissionId ?? null,
               type: record.type,
               fullName: data.fullName,
               companyName: data.companyName,
@@ -255,7 +336,15 @@ async function createEnquiry(record: EnquiryRecord): Promise<{ id: string; refer
         { maxWait: 10_000, timeout: 15_000 },
       );
     } catch (err) {
-      if (attempt < REFERENCE_ATTEMPTS && isUniqueViolation(err)) continue;
+      // A reference clash is retried; a submissionId clash is not (a retry
+      // would clash again) and is resolved by createEnquiry.
+      if (
+        attempt < REFERENCE_ATTEMPTS &&
+        isUniqueViolation(err) &&
+        !(await existingReference(record.data.submissionId))
+      ) {
+        continue;
+      }
       throw err;
     }
   }
@@ -291,7 +380,7 @@ async function sendLogged(
   message: { subject: string; html: string; text: string },
 ): Promise<void> {
   try {
-    await getEmailProvider().send({ to, ...message });
+    await withTimeout(getEmailProvider().send({ to, ...message }), emailTimeoutMs);
     await recordActivity(enquiryId, "email.sent", { kind, recipients: to.length });
   } catch (err) {
     console.error(`[rfq] ${kind} email failed:`, describeError(err));
@@ -364,31 +453,30 @@ async function submit(formData: FormData, requestHeaders: Headers): Promise<Subm
     return { ok: true, reference, droppedProducts: [], warnings: {} };
   }
 
+  // Cheap, synchronous field validation first: junk never consumes the limiter.
+  const parsed = rfqSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error.issues) };
+  const data = parsed.data;
+
+  // Replay of an already-stored submission: return only its reference. The
+  // token is a random uuid known only to the visitor's own form, so it cannot
+  // be guessed to probe someone else's enquiry, and nothing else is disclosed.
+  const replayed = await existingReference(data.submissionId);
+  if (replayed) return { ok: true, reference: replayed, droppedProducts: [], warnings: {} };
+
   const ip = getClientIp(requestHeaders);
-  if (!ip && !warnedNoIp) {
-    warnedNoIp = true;
-    console.warn(
-      "[rfq] no trusted client IP; RFQ rate limiting falls back to one shared bucket. " +
-        'See README "Deployment: reverse proxy and client IP".',
-    );
-  }
+  if (!ip) warnUnresolvedIpOnce();
   const ipHash = ip ? hashIp(ip, env.RATE_LIMIT_SALT) : null;
   const limit = await checkRateLimit(
     dbRateLimitStore,
     `rfq:${ipHash ?? NO_TRUSTED_IP}`,
-    RFQ_RATE_LIMIT,
+    ipHash ? RFQ_RATE_LIMIT : RFQ_UNRESOLVED_IP_RATE_LIMIT,
     RFQ_RATE_WINDOW_MS,
   );
   if (!limit.allowed) return formError(RATE_LIMITED);
 
-  const parsed = rfqSchema.safeParse(raw);
   const attachments = await readAttachments(formData);
-  if (!parsed.success || !attachments.ok) {
-    const errors = parsed.success ? {} : fieldErrors(parsed.error.issues);
-    if (!attachments.ok) errors.attachments = attachments.errors;
-    return { ok: false, errors };
-  }
-  const data = parsed.data;
+  if (!attachments.ok) return { ok: false, errors: { attachments: attachments.errors } };
   const files = attachments.files;
 
   const { lines, dropped } = await resolveLines(data.items);
@@ -403,17 +491,23 @@ async function submit(formData: FormData, requestHeaders: Headers): Promise<Subm
 
   const storage = getStorage();
   const written: string[] = [];
-  let enquiry: { id: string; reference: string };
+  let outcome: CreateOutcome;
   try {
     for (const file of files) {
       await storage.put(file.key, file.bytes, { mimeType: file.mimeType });
       written.push(file.key);
     }
-    enquiry = await createEnquiry(record);
+    outcome = await createEnquiry(record);
   } catch (err) {
     await removeFiles(written);
     throw err;
   }
+  if (outcome.kind === "duplicate") {
+    // Lost a concurrent replay race: the winner owns the enquiry and emails.
+    await removeFiles(written);
+    return { ok: true, reference: outcome.reference, droppedProducts: [], warnings: {} };
+  }
+  const enquiry = { id: outcome.id, reference: outcome.reference };
 
   try {
     await notify(enquiry, record);

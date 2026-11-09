@@ -160,6 +160,15 @@ describe("rfqSchema", () => {
     expect(empty.success && empty.data.items[0].productId).toBeUndefined();
   });
 
+  it("accepts an optional uuid submissionId (idempotency token)", () => {
+    const token = "9b2f6c1e-3d4a-4e5f-8a7b-6c5d4e3f2a1b";
+    const withToken = rfqSchema.safeParse(valid({ submissionId: ` ${token.toUpperCase()} ` }));
+    expect(withToken.success && withToken.data.submissionId).toBe(token);
+    const without = rfqSchema.safeParse(valid({ submissionId: "" }));
+    expect(without.success && without.data.submissionId).toBeUndefined();
+    expect(issuesFor(valid({ submissionId: "replay-me" }))).toHaveProperty("submissionId");
+  });
+
   it("accepts the honeypot field but flags it when filled", () => {
     const clean = rfqSchema.safeParse(valid());
     expect(clean.success && isHoneypotFilled(clean.data)).toBe(false);
@@ -174,6 +183,7 @@ describe("rfqSchema", () => {
 describe("form data round trip", () => {
   it("rfqToFormData and rfqFromFormData agree", () => {
     const values = valid({
+      submissionId: "9b2f6c1e-3d4a-4e5f-8a7b-6c5d4e3f2a1b",
       items: [
         { productId: PRODUCT_ID, name: "TEST Linalool", quantity: 25, unit: "KG" },
         { name: "TEST Custom blend", quantity: 0.5, unit: "L", notes: "sample first" },
@@ -184,6 +194,7 @@ describe("form data round trip", () => {
     expect(parsed.success).toBe(true);
     if (!parsed.success) return;
     expect(parsed.data.consent).toBe(true);
+    expect(parsed.data.submissionId).toBe("9b2f6c1e-3d4a-4e5f-8a7b-6c5d4e3f2a1b");
     expect(parsed.data.items).toEqual([
       { productId: PRODUCT_ID, name: "TEST Linalool", quantity: 25, unit: "KG" },
       { name: "TEST Custom blend", quantity: 0.5, unit: "L", notes: "sample first" },
