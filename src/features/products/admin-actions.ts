@@ -1,0 +1,159 @@
+"use server";
+
+import { refresh } from "next/cache";
+import type { ProductStatus } from "@/generated/prisma/enums";
+import { auditLog } from "@/features/admin/audit";
+import { isProductStatus } from "@/features/products/admin-queries";
+import { PUBLISH_REQUIREMENTS_ERROR, isPublishCheckViolation, publishBlockReason } from "@/features/products/publish-guard";
+import { db } from "@/lib/db";
+import { requireRole } from "@/lib/permissions";
+import { normalizeUuid } from "@/lib/uuid";
+
+/*
+ * Admin product actions. Every exported function is a public Server Action
+ * endpoint, so each one authorises itself with requireRole() first (outside
+ * any try/catch: it throws redirect/forbidden), then validates its untrusted
+ * arguments. Results carry human messages only, never internal errors.
+ *
+ * publishedAt: set to now on every move into PUBLISHED (a republish counts as
+ * new for "newest" sorting); unpublish and archive keep it as the date of the
+ * last publication. The public queries filter on status, so it is inert then.
+ */
+
+export type ActionResult = { ok: true } | { ok: false; error: string };
+export type ProductFormState = { ok: boolean; message: string } | null;
+
+const NOT_FOUND = "Product not found.";
+const INVALID_PRODUCT = "That product reference is not valid.";
+const INVALID_STATUS = "That status is not valid.";
+const NOT_PERMITTED = "Not permitted";
+const FAILED = "The change could not be saved. Try again.";
+
+function errorClass(err: unknown): string {
+  return err instanceof Error ? err.name : typeof err;
+}
+
+export async function setProductStatus(
+  productId: string,
+  status: "PUBLISHED" | "DRAFT" | "ARCHIVED",
+): Promise<ActionResult> {
+  const actor = await requireRole();
+  const id = normalizeUuid(productId);
+  if (!id) return { ok: false, error: INVALID_PRODUCT };
+  if (!isProductStatus(status)) return { ok: false, error: INVALID_STATUS };
+
+  const audit = (outcome: "ok" | "rejected", from?: ProductStatus) =>
+    auditLog("product.status", { actorId: actor.userId, actorRole: actor.role, productId: id, outcome, from, to: status });
+
+  try {
+    const product = await db.product.findUnique({
+      where: { id },
+      select: { name: true, slug: true, verified: true, status: true },
+    });
+    if (!product) return { ok: false, error: NOT_FOUND };
+    if (product.status === status) return { ok: true };
+
+    if (status === "PUBLISHED") {
+      const reason = publishBlockReason(product);
+      if (reason) {
+        audit("rejected", product.status);
+        return { ok: false, error: reason };
+      }
+      // Conditional write: if the product was unverified meanwhile, nothing
+      // changes; the CHECK constraint backs up the name/slug rule.
+      const { count } = await db.product.updateMany({
+        where: { id, verified: true },
+        data: { status: "PUBLISHED", publishedAt: new Date() },
+      });
+      if (count === 0) {
+        audit("rejected", product.status);
+        return { ok: false, error: PUBLISH_REQUIREMENTS_ERROR };
+      }
+    } else {
+      await db.product.update({ where: { id }, data: { status } });
+    }
+    audit("ok", product.status);
+    return { ok: true };
+  } catch (err) {
+    if (isPublishCheckViolation(err)) {
+      audit("rejected");
+      return { ok: false, error: PUBLISH_REQUIREMENTS_ERROR };
+    }
+    console.error("[admin] product status change failed:", errorClass(err));
+    return { ok: false, error: FAILED };
+  }
+}
+
+/**
+ * SUPER_ADMIN only. Marking a PUBLISHED product unverified also returns it to
+ * DRAFT in the same statement, because a published product must be verified.
+ */
+export async function setProductVerified(productId: string, verified: boolean): Promise<ActionResult> {
+  const actor = await requireRole();
+  const id = normalizeUuid(productId);
+  if (actor.role !== "SUPER_ADMIN") {
+    auditLog("product.verified", {
+      actorId: actor.userId,
+      actorRole: actor.role,
+      productId: id ?? "invalid",
+      outcome: "denied",
+      to: typeof verified === "boolean" ? verified : undefined,
+    });
+    return { ok: false, error: NOT_PERMITTED };
+  }
+  if (!id) return { ok: false, error: INVALID_PRODUCT };
+  if (typeof verified !== "boolean") return { ok: false, error: "That value is not valid." };
+
+  try {
+    const product = await db.product.findUnique({ where: { id }, select: { verified: true, status: true } });
+    if (!product) return { ok: false, error: NOT_FOUND };
+    if (product.verified === verified) return { ok: true };
+    const unpublish = !verified && product.status === "PUBLISHED";
+    await db.product.update({
+      where: { id },
+      data: unpublish ? { verified, status: "DRAFT" } : { verified },
+    });
+    auditLog("product.verified", {
+      actorId: actor.userId,
+      actorRole: actor.role,
+      productId: id,
+      outcome: "ok",
+      from: product.verified,
+      to: verified,
+      effect: unpublish ? "unpublished" : undefined,
+    });
+    return { ok: true };
+  } catch (err) {
+    console.error("[admin] product verification change failed:", errorClass(err));
+    return { ok: false, error: FAILED };
+  }
+}
+
+const STATUS_DONE: Record<ProductStatus, string> = {
+  PUBLISHED: "Published.",
+  DRAFT: "Moved to draft.",
+  ARCHIVED: "Archived.",
+};
+
+/** `useActionState` form wrapper for setProductStatus (fields: productId, status). */
+export async function submitProductStatus(_prev: ProductFormState, formData: FormData): Promise<ProductFormState> {
+  await requireRole();
+  const status = formData.get("status");
+  if (!isProductStatus(status)) return { ok: false, message: INVALID_STATUS };
+  const result = await setProductStatus(String(formData.get("productId") ?? ""), status);
+  if (!result.ok) return { ok: false, message: result.error };
+  refresh();
+  return { ok: true, message: STATUS_DONE[status] };
+}
+
+/** `useActionState` form wrapper for setProductVerified (fields: productId, verified=true|false). */
+export async function submitProductVerified(_prev: ProductFormState, formData: FormData): Promise<ProductFormState> {
+  await requireRole();
+  const raw = formData.get("verified");
+  if (raw !== "true" && raw !== "false") return { ok: false, message: "That value is not valid." };
+  const verified = raw === "true";
+  const result = await setProductVerified(String(formData.get("productId") ?? ""), verified);
+  if (!result.ok) return { ok: false, message: result.error };
+  refresh();
+  return { ok: true, message: verified ? "Marked verified." : "Marked unverified." };
+}

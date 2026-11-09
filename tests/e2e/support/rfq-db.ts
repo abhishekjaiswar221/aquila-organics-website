@@ -7,7 +7,7 @@ import path from "node:path";
 import { Client } from "pg";
 import { E2E_STORAGE_ROOT, assertTestDatabase, e2eDatabaseUrl, e2eServerEnv } from "./e2e-env";
 
-async function withDb<T>(fn: (client: Client) => Promise<T>): Promise<T> {
+export async function withDb<T>(fn: (client: Client) => Promise<T>): Promise<T> {
   const url = e2eDatabaseUrl();
   assertTestDatabase(url);
   const client = new Client({ connectionString: url });

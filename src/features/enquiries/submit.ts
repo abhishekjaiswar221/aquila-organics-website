@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Prisma, type EnquiryType } from "@/generated/prisma/client";
 import { getPublishedProductsByIds } from "@/features/products/queries";
 import { validateAttachment } from "@/features/enquiries/attachment-rules";
+import { parseRecipients, recipientsKey } from "@/features/enquiries/recipients";
 import { generateReference } from "@/features/enquiries/reference";
 import {
   ATTACHMENTS_FIELD,
@@ -54,7 +55,6 @@ export const RFQ_RATE_WINDOW_MS = 60 * 60 * 1000;
 export const RFQ_EMAIL_TIMEOUT_MS = 8_000;
 const NO_TRUSTED_IP = "no-trusted-ip";
 const MAX_USER_AGENT = 200;
-const MAX_RECIPIENTS = 20;
 const REFERENCE_LOCK_NAMESPACE = 0x41510001;
 const REFERENCE_ATTEMPTS = 3;
 
@@ -358,19 +358,10 @@ async function recordActivity(enquiryId: string, action: string, detail: Prisma.
   }
 }
 
+// Shared with the admin enquiries warning (src/features/enquiries/recipients.ts).
 async function recipientsFor(type: EnquiryType): Promise<string[]> {
-  const setting = await db.siteSetting.findUnique({ where: { key: `notification.recipients.${type}` } });
-  const value = setting?.value;
-  if (!Array.isArray(value)) return [];
-  const email = z.email();
-  const out = new Set<string>();
-  for (const entry of value) {
-    if (typeof entry !== "string") continue;
-    const address = entry.trim().toLowerCase();
-    if (email.safeParse(address).success) out.add(address);
-    if (out.size >= MAX_RECIPIENTS) break;
-  }
-  return [...out];
+  const setting = await db.siteSetting.findUnique({ where: { key: recipientsKey(type) } });
+  return parseRecipients(setting?.value);
 }
 
 async function sendLogged(

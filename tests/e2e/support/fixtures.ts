@@ -75,3 +75,30 @@ export const PUBLISHED_COUNT = 3 + BULK.length;
 
 /** Internal provenance note on every fixture; must never reach a page. */
 export const SOURCE_NOTE = "TEST-internal-source-note";
+
+/** Fake admin accounts with known test passwords (TEST database only). */
+export const ADMIN_USERS = {
+  superAdmin: {
+    id: id(0x301),
+    email: "test-super-admin@admin.example.test",
+    password: "TEST-super-admin-passphrase",
+    role: "SUPER_ADMIN",
+    roleLabel: "Super admin",
+  },
+  salesManager: {
+    id: id(0x302),
+    email: "test-sales-manager@admin.example.test",
+    password: "TEST-sales-manager-passphrase",
+    role: "SALES_MANAGER",
+    roleLabel: "Sales manager",
+  },
+  contentEditor: {
+    id: id(0x303),
+    email: "test-content-editor@admin.example.test",
+    password: "TEST-content-editor-passphrase",
+    role: "CONTENT_EDITOR",
+    roleLabel: "Content editor",
+  },
+} as const;
+
+export type AdminUser = (typeof ADMIN_USERS)[keyof typeof ADMIN_USERS];

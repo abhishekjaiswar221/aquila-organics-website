@@ -3,9 +3,10 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { hashPassword } from "better-auth/crypto";
 import { PrismaClient } from "../../../src/generated/prisma/client";
 import { E2E_STORAGE_ROOT, assertTestDatabase } from "./e2e-env";
-import { ARCHIVED, BULK, CATEGORY, DRAFT, ETHANOL, MINIMAL, SOURCE_NOTE, WATER } from "./fixtures";
+import { ADMIN_USERS, ARCHIVED, BULK, CATEGORY, DRAFT, ETHANOL, MINIMAL, SOURCE_NOTE, WATER } from "./fixtures";
 
 const digits = (cas: string) => cas.replace(/-/g, "");
 
@@ -114,6 +115,21 @@ async function main(): Promise<void> {
     await db.product.createMany({
       data: BULK.map((p, i) => ({ ...p, categoryId: CATEGORY.fixtures.id, ...published(i) })),
     });
+
+    // Admin accounts, stored the way Better Auth's credential sign-up stores
+    // them (its own password hasher; account id = user id).
+    for (const u of Object.values(ADMIN_USERS)) {
+      await db.user.create({
+        data: {
+          id: u.id,
+          email: u.email,
+          name: u.email.split("@")[0],
+          emailVerified: true,
+          role: u.role,
+          accounts: { create: { accountId: u.id, providerId: "credential", password: await hashPassword(u.password) } },
+        },
+      });
+    }
 
     // Document files live in their own storage root; both files exist, so a
     // 404 for the draft document proves the status check, not a missing file.
