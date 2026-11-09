@@ -180,29 +180,64 @@ test.describe("admin: access control", () => {
 
   test("a forged session cookie passes the proxy but the server still refuses it", async ({ page, request, baseURL }) => {
     const forged = "better-auth.session_token=TEST-forged-token.TEST-forged-signature";
-    // Past the proxy: the request reaches the server (no 307 from the proxy).
-    const res = await request.get("/admin/enquiries", { maxRedirects: 0, headers: { cookie: forged } });
-    expect(res.status()).not.toBe(307);
-    const body = await res.text();
-    expect(body).not.toContain(DRAFT.name);
-    expect(body).not.toContain("enquiry-row");
+    // Pages that WOULD show the draft product / the enquiry if access leaked.
+    // The query is a different field than the one asserted absent, because the
+    // page's search params can legitimately be echoed in the RSC payload.
+    const enquiry = await createEnquiry();
+    const productsUrl = `/admin/products?q=${encodeURIComponent(DRAFT.code)}`;
+    const enquiriesUrl = `/admin/enquiries?q=${encodeURIComponent(enquiry.email)}`;
+    try {
+      // Past the proxy: the request reaches the server (no 307 from the proxy).
+      for (const [url, secret] of [
+        [productsUrl, DRAFT.name],
+        [enquiriesUrl, enquiry.reference],
+      ] as const) {
+        const res = await request.get(url, { maxRedirects: 0, headers: { cookie: forged } });
+        expect(res.status(), url).not.toBe(307);
+        const body = await res.text();
+        expect(body, url).not.toContain(secret);
+        expect(body, url).not.toContain("product-row");
+        expect(body, url).not.toContain("enquiry-row");
+      }
 
-    // In a browser the server-side check sends it to the login page.
-    await page.context().addCookies([
-      { name: "better-auth.session_token", value: "TEST-forged-token.TEST-forged-signature", url: baseURL ?? "" },
-    ]);
-    await page.goto("/admin/enquiries");
-    await expect(page).toHaveURL(/\/admin\/login(\?|$)/);
-    await expect(page.getByRole("heading", { level: 1, name: "Sign in" })).toBeVisible();
-    await expect(page.locator("main")).not.toContainText(DRAFT.name);
+      // In a browser the server-side check sends it to the login page.
+      await page.context().addCookies([
+        { name: "better-auth.session_token", value: "TEST-forged-token.TEST-forged-signature", url: baseURL ?? "" },
+      ]);
+      for (const [url, secret] of [
+        [productsUrl, DRAFT.name],
+        [enquiriesUrl, enquiry.reference],
+      ] as const) {
+        await page.goto(url);
+        await expect(page).toHaveURL(/\/admin\/login(\?|$)/);
+        await expect(page.getByRole("heading", { level: 1, name: "Sign in" })).toBeVisible();
+        await expect(page.locator("main"), url).not.toContainText(secret);
+      }
+
+      // Control: with a real session the same URLs do show them.
+      await page.context().clearCookies();
+      await signInViaApi(page, salesManager);
+      await page.goto(productsUrl);
+      await expect(productRow(page, DRAFT.name)).toBeVisible();
+      await page.goto(enquiriesUrl);
+      await expect(page.getByTestId("enquiry-row")).toContainText(enquiry.reference);
+    } finally {
+      await deleteEnquiry(enquiry);
+    }
   });
 
-  test("a deep link survives signing in: login with next lands on the requested page", async ({ page }) => {
-    await page.goto("/admin/enquiries");
-    await expect(page).toHaveURL(atLogin("/admin/enquiries"));
-    await signInWithForm(page, salesManager);
-    await page.waitForURL(/\/admin\/enquiries$/);
-    await expect(page.getByRole("heading", { level: 1, name: "Enquiries" })).toBeVisible();
+  test("a deep link survives signing in: login with next lands on the requested enquiry", async ({ page }) => {
+    const enquiry = await createEnquiry();
+    try {
+      const detail = `/admin/enquiries/${enquiry.id}`;
+      await page.goto(detail);
+      await expect(page).toHaveURL(atLogin(detail));
+      await signInWithForm(page, salesManager);
+      await page.waitForURL(new RegExp(`${escapeRe(detail)}$`));
+      await expect(page.getByRole("heading", { level: 1 })).toContainText(enquiry.reference);
+    } finally {
+      await deleteEnquiry(enquiry);
+    }
   });
 
   test("signed out, the attachment route answers 401 with nothing in the body", async ({ request }) => {
