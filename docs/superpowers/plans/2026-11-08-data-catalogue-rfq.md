@@ -229,3 +229,24 @@ tests/unit, tests/integration, tests/e2e
 - §3 data model → Task 3; §4 catalogue → Tasks 7–8; §5 RFQ → Tasks 9–10 (+5 for attachments/email); §6 admin → Tasks 4, 11; §7 import/storage/email/env/docker → Tasks 1, 5, 6; §8 testing → each task plus Task 12; §9 risks → Task 12 docs.
 - Names consistent across tasks (`requireRole`, `can`, `classifyQuery`, `searchProducts`, `submitRfq`, `validateAttachment`, `StorageProvider`, `EmailProvider`, `importProducts`).
 - Notable judgement calls for review: Task 11 gives only `SUPER_ADMIN` the "mark verified" toggle (spec requires verified before publish but does not say who sets it); merged branch strategy assumes `feat/catalogue-rfq` is cut from the current head.
+
+## Deviations as built
+
+Recorded after Task 12; the tasks above are left as planned.
+
+- **Order:** Task 9 (RFQ domain) ran before Task 8 (catalogue pages).
+- **`acknowledgementEmail` signature:** it is `acknowledgementEmail({ reference, lineCount })`, not the Task 5 signature. It carries no items and no name ("Dear customer,"), so nothing the visitor typed reaches the recipient. `internalNotificationEmail` keeps the full details, including line notes.
+- **Product audit:** product status and verification changes are a structured `[admin.audit]` server log line only (`src/features/admin/audit.ts`). There is no audit table, and `sourceNote` is not used as a history. An `AuditLog` table is deferred to the full-admin sub-project.
+- **`src/proxy.ts`:**
+  - It answers a real 404 for unpublished or unknown product slugs, which a page-level `notFound()` cannot do under Cache Components.
+  - It sends signed-out `/admin` page requests a 307 to `/admin/login?next=...`. This checks only that a cookie is present. `requireRole()` stays the authority.
+  - Both branches skip router prefetches in the matcher (`missing` headers), because Next.js strips those headers inside the proxy.
+- **Idempotency:** the RFQ form sends one client-generated `submissionId` per form instance, stored under a unique index (migration `20261109120000_enquiry_submission_id`). A replay returns the existing reference and sends no second email.
+- **Per-recipient acknowledgement cap:** at most 3 acknowledgements per normalised address per day (`rfq-ack:<salted hash>` in `RateLimitHit`). Over the cap the enquiry is stored, sales are notified and an `email.skipped` activity is recorded. This is in addition to the 5-per-hour per-IP limit, which has a 100-per-hour shared fallback when no client IP can be trusted.
+- **Cache Components pattern:** with `cacheComponents: true`, the pages that read request data without a `<Suspense>` boundary export `instant = false`. These are the catalogue list, the product page, the RFQ confirmation, the admin login, the admin panel layout and the enquiry list and detail pages. It declares that blocking is intended and opts them out of static-shell validation.
+- **Smaller additions:**
+  - The product document lookup that returns a storage key lives in a `server-only` module (`src/features/products/document-queries.ts`).
+  - The product slug `documents` is reserved.
+  - `HEAD` on the admin attachment route answers 405.
+  - A missing `NEXT_PUBLIC_SITE_URL` in production logs one warning per process.
+  - `E2E_PORT` overrides the e2e port.
