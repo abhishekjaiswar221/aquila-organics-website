@@ -6,6 +6,9 @@ export const secretEnvSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(32),
   BETTER_AUTH_URL: z.url(),
   STORAGE_DRIVER: z.literal("local"),
+  // Optional root directory for the local storage driver (default ./storage/uploads).
+  // The e2e suite points it at its own fixture directory.
+  STORAGE_LOCAL_ROOT: z.string().trim().min(1).optional(),
   EMAIL_DRIVER: z.literal("dev"),
   RATE_LIMIT_SALT: z.string().min(8),
   ADMIN_EMAIL: z.string().min(1).optional(),

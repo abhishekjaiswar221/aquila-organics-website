@@ -12,7 +12,9 @@ export class LocalStorage implements StorageProvider {
   private readonly root: string;
 
   constructor(root: string = path.resolve(process.cwd(), "storage", "uploads")) {
-    this.root = path.resolve(root);
+    // The root is runtime configuration (STORAGE_LOCAL_ROOT), not a source
+    // path: keep the bundler from tracing the whole project for it.
+    this.root = path.resolve(/*turbopackIgnore: true*/ root);
   }
 
   private resolveKey(key: string): string {

@@ -15,7 +15,7 @@ export function Hero({ data }: { data: HeroData }) {
           </h1>
           <p className="mt-8 max-w-xl text-lg leading-relaxed text-muted-foreground">{data.lead}</p>
           <div className="mt-10 flex flex-wrap gap-4">
-            <ActionButton href="/#aroma-chemicals" variant="primary">
+            <ActionButton href="/aroma-chemicals" variant="primary">
               Explore aroma chemicals
             </ActionButton>
             <ActionButton href={`mailto:${contacts.sales}`} variant="secondary">

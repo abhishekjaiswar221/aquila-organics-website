@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { body, display, mono } from "@/lib/fonts";
+import { SITE_URL } from "@/lib/seo/site-url";
 import "./globals.css";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "Aquila Organics — Fragrances, Aroma Chemicals & Flavours",
     template: "%s | Aquila Organics",

@@ -10,7 +10,7 @@ export function getStorage(): StorageProvider {
   if (instance) return instance;
   switch (env.STORAGE_DRIVER) {
     case "local":
-      instance = new LocalStorage();
+      instance = new LocalStorage(env.STORAGE_LOCAL_ROOT);
       return instance;
     default:
       throw new Error("Unsupported STORAGE_DRIVER");

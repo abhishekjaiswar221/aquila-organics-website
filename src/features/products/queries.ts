@@ -229,6 +229,43 @@ export async function getPublishedProductsByIds(ids: readonly string[]): Promise
   })
 }
 
+/** Cheap existence check (indexed slug) used by src/proxy.ts before rendering. */
+export async function isPublishedSlug(slug: string): Promise<boolean> {
+  const row = await db.product.findFirst({
+    where: { AND: [PUBLIC, { slug: stripNul(slug) }] },
+    select: { id: true },
+  })
+  return row !== null
+}
+
+export type SitemapEntry = { slug: string; lastModified: Date }
+
+/** Slugs of published products for the sitemap; nothing else leaves the database. */
+export async function getPublishedSitemapEntries(): Promise<SitemapEntry[]> {
+  const rows = await db.product.findMany({
+    where: PUBLIC,
+    select: { slug: true, updatedAt: true },
+    orderBy: [{ slug: 'asc' }],
+  })
+  return rows.map((r) => ({ slug: r.slug, lastModified: r.updatedAt }))
+}
+
+export type DocumentFile = { id: string; title: string; mimeType: string; storageKey: string }
+
+/**
+ * SERVER ONLY (document download route): a document together with its storage
+ * key, but only when it belongs to a published product. The key is used to
+ * open the stream and must never be sent to a browser.
+ */
+export async function getPublishedDocumentFile(id: string): Promise<DocumentFile | null> {
+  const normalised = typeof id === 'string' ? id.trim().toLowerCase() : ''
+  if (!UUID.test(normalised)) return null
+  return db.productDocument.findFirst({
+    where: { id: normalised, product: PUBLIC },
+    select: { id: true, title: true, mimeType: true, storageKey: true },
+  })
+}
+
 export async function getRelatedProducts(
   productId: string,
   limit: number,
