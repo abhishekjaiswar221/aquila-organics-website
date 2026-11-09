@@ -238,6 +238,9 @@ model Enquiry {
   id                     String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   /// Human-readable, e.g. AQ-2026-000123.
   reference              String              @unique
+  /// Client-generated idempotency token (one random uuid per form instance);
+  /// a replay of the same token returns the existing reference.
+  submissionId           String?             @unique @db.Uuid
   type                   EnquiryType
   status                 EnquiryStatus       @default(NEW)
   fullName               String
