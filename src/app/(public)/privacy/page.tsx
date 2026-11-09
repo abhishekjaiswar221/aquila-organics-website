@@ -77,6 +77,8 @@ export default function PrivacyPage() {
           <p>
             With each enquiry we also store your browser&rsquo;s user agent and a one-way code derived from your
             IP address. We use the code to limit repeated submissions and do not store the IP address itself.
+            To limit how many acknowledgement emails one email address can receive, we also keep a count against
+            a one-way code derived from that address; this count does not contain the address itself.
           </p>
           <p>
             Careers and contact forms will be added to this website later. They will collect only the information
