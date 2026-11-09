@@ -2,6 +2,7 @@ import { parse } from "dotenv";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { resolveTestDatabaseUrl } from "../../integration/env-guard";
+import { resolveE2ePort } from "./e2e-port";
 
 // Shared by playwright.config.ts (the app server's environment) and the e2e
 // global setup (migrate + seed). Both refuse to run unless the database is a
@@ -10,18 +11,10 @@ import { resolveTestDatabaseUrl } from "../../integration/env-guard";
 export const REPO_ROOT = path.resolve(__dirname, "../../..");
 /**
  * Port for the e2e build (`next start`). Defaults to 3100; set E2E_PORT in the
- * environment when another server already holds it (do not edit this default).
+ * shell or in .env (the shell wins) when another server already holds it. Do
+ * not edit the default.
  */
-export const E2E_PORT = parsePort(process.env.E2E_PORT);
-
-function parsePort(value: string | undefined): number {
-  if (value === undefined || value.trim() === "") return 3100;
-  const port = Number(value);
-  if (!Number.isInteger(port) || port < 1024 || port > 65535) {
-    throw new Error(`E2E_PORT must be an integer from 1024 to 65535, got "${value}".`);
-  }
-  return port;
-}
+export const E2E_PORT = resolveE2ePort(process.env, fileEnv());
 export const E2E_BASE_URL = `http://localhost:${E2E_PORT}`;
 /** LocalStorage root for e2e document fixtures (under the git-ignored /storage). */
 export const E2E_STORAGE_ROOT = path.join(REPO_ROOT, "storage", "e2e", "uploads");
@@ -34,11 +27,15 @@ function databaseName(url: string): string {
   }
 }
 
-function sourceEnv(): Record<string, string | undefined> {
+/** The repository's .env, parsed (not loaded into process.env). */
+function fileEnv(): Record<string, string> {
   const envFile = path.join(REPO_ROOT, ".env");
-  const fileEnv = existsSync(envFile) ? parse(readFileSync(envFile)) : {};
+  return existsSync(envFile) ? parse(readFileSync(envFile)) : {};
+}
+
+function sourceEnv(): Record<string, string | undefined> {
   // Real environment wins over .env, as with dotenv.
-  return { ...fileEnv, ...process.env };
+  return { ...fileEnv(), ...process.env };
 }
 
 /** DATABASE_URL_TEST, guaranteed distinct from DATABASE_URL and named *_test. */

@@ -71,7 +71,7 @@ The Prisma CLI, the scripts and the test configs read `.env`. Next.js reads it a
 | `RATE_LIMIT_SALT` | Salt for the hashed IP and email keys used by the rate limits |
 | `AUTH_IP_HEADER`, `AUTH_TRUSTED_PROXIES` | Optional. How the client IP is read behind a proxy (see "Deployment" below) |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Optional. Used only by `npm run seed:admin` |
-| `E2E_PORT` | Optional. Port for the e2e server, default 3100 (see "Running the tests") |
+| `E2E_PORT` | Optional. Port for the e2e server (integer 1-65535, default 3100). Read from the shell environment first, then `.env`; the shell wins (see "Running the tests") |
 
 `NEXT_PUBLIC_SITE_URL` is the only `NEXT_PUBLIC_` variable and holds no secret. Everything else is server-only (`src/lib/env.ts`) and must never be renamed to `NEXT_PUBLIC_`.
 
@@ -144,7 +144,7 @@ Order used for a full check: `npm run lint`, `npm run typecheck`, `npm test`, `n
 About the e2e suite:
 
 - **Seeding.** The global setup (`tests/e2e/support/global-setup.ts`) migrates and reseeds `aquila_test` with the fake fixtures in `tests/e2e/support/fixtures.ts`. Every fixture is prefixed `TEST-`: products, categories, admin accounts with test-only passwords, and document files under `./storage/e2e/uploads`. Tests that need their own enquiries or drafts create and delete them through `tests/e2e/support/admin.ts` and `rfq-db.ts`.
-- **Port.** It always builds and starts its own server (`npm run build && npm run start -- -p 3100`) and never reuses a running one. Port 3100 must be free. If another project's server holds it, do not stop that server and do not change the default in the repo. Choose another port for the run instead, for example `E2E_PORT=3110 npm run test:e2e` (PowerShell: `$env:E2E_PORT=3110; npm run test:e2e`).
+- **Port.** It always builds and starts its own server (`npm run build && npm run start -- -p 3100`) and never reuses a running one. Port 3100 must be free. If another project's server holds it, do not stop that server and do not change the default in the repo. Choose another port instead: for one run, `E2E_PORT=3110 npm run test:e2e` (PowerShell: `$env:E2E_PORT=3110; npm run test:e2e`); to keep it, set `E2E_PORT=3110` in `.env`. A value in the shell environment beats the one in `.env`.
 - **The build it leaves behind.** The run rebuilds `.next` with `NEXT_PUBLIC_SITE_URL=http://localhost:<port>` and the test database settings baked in. After an e2e run, run `npm run build` again before using `npm run start` for anything else.
 - **Write tests.** Tests tagged `@catalogue-write` publish products, which changes catalogue counts. They run once, in the `catalogue-write` project, after all four width projects have finished.
 
