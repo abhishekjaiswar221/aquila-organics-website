@@ -1,9 +1,9 @@
 import type { MetadataRoute } from "next";
-import { CATALOGUE_PATH, absoluteUrl, productPath } from "./site-url";
+import { CATALOGUE_PATH, PRIVACY_PATH, absoluteUrl, productPath } from "./site-url";
 
 export type SitemapProduct = { slug: string; lastModified: Date };
 
-/** Public, indexable URLs only: homepage, catalogue, published products. */
+/** Public, indexable URLs only: homepage, catalogue, published products, privacy notice. */
 export function buildSitemap(baseUrl: string, products: readonly SitemapProduct[]): MetadataRoute.Sitemap {
   return [
     { url: absoluteUrl(baseUrl, "/"), changeFrequency: "monthly", priority: 1 },
@@ -14,6 +14,7 @@ export function buildSitemap(baseUrl: string, products: readonly SitemapProduct[
       changeFrequency: "monthly" as const,
       priority: 0.6,
     })),
+    { url: absoluteUrl(baseUrl, PRIVACY_PATH), changeFrequency: "yearly", priority: 0.2 },
   ];
 }
 

@@ -20,6 +20,9 @@ const EXTENSIONS: Record<string, { mimeType: string; kind: Kind }> = {
   csv: { mimeType: "text/csv", kind: "text" },
 };
 
+/** Allowed extensions (lower case, no dot), for client-side hints. The server check is authoritative. */
+export const ATTACHMENT_EXTENSIONS: readonly string[] = Object.keys(EXTENSIONS);
+
 export type AttachmentResult =
   | { ok: true; mimeType: string; safeName: string }
   | { ok: false; reason: string };

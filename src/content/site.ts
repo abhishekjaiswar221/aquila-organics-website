@@ -72,6 +72,12 @@ export const primaryNav: NavItem[] = [
   { label: "Contact", href: "/contact", available: false },
 ];
 
+/** Secondary links in the footer (sub-project 2: the draft privacy notice and the RFQ form). */
+export const footerNav: NavItem[] = [
+  { label: "Request a quotation", href: "/rfq", available: true },
+  { label: "Privacy", href: "/privacy", available: true },
+];
+
 /** The three business segments. Each links to its page once shipped (Aroma Chemicals), otherwise to its homepage section. */
 export const segments = [
   {

@@ -51,3 +51,12 @@ Capacities, lab description, customers, export volumes, awards, certificate deta
 ## G. Images/documents
 
 Replace: all placeholder category images, "Demo Site" logo alt, Joomla placeholders. Keep subject to client confirmation: logos, Hattali photo, five incense/bakhoor photos, 17 datasheets, MMCA SDS, certificate files. Stock imagery is never to be presented as Aquila facilities.
+
+## H. Sub-project 2: catalogue and RFQ
+
+| # | Item | Status | Action |
+|---|---|---|---|
+| 1 | Privacy notice (`/privacy`) | 🛑 Draft, not legal advice | Legal review before launch. It describes only what the site does today (RFQ fields, IP-derived hash for rate limiting, user agent, local-storage enquiry list, admin session cookie, hosting and email providers as processors). Retention is stated as "to be confirmed by Aquila"; no named law or certification is claimed. Careers/contact sections must be revised when those forms ship. Requests go to `info@` until the client names a privacy contact |
+| 2 | RFQ internal notification recipients | ❓ Client input needed | `SiteSetting` keys `notification.recipients.<FRAGRANCES\|AROMA_CHEMICALS\|FLAVOURS\|GENERAL>` are empty by default, so internal emails are skipped (and logged). Ask which mailboxes receive each enquiry type (see A4 for the current mailbox mapping) |
+| 3 | Legacy products (`data/legacy-products.json`) | 🛑 Drafts only | Imported as `DRAFT`, `verified=false`, with a `sourceNote` on each row. Known CAS conflicts (A5–A8: methyl chloroacetate, the duplicate 1123-85-9 pair, Citronellyl Tiglate) are entered with CAS left empty and a note, never guessed. Nothing is published until the client confirms each product against its datasheet/SDS (spec §7) |
+| 4 | RFQ confirmation copy | 📄 Neutral wording | Says only that a member of the team will review and respond, and that an acknowledgement follows if an email address was provided. No response time is promised; add one only if the client confirms it |

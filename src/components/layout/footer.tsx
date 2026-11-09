@@ -1,4 +1,5 @@
-import { addresses, company, contacts } from "@/content/site";
+import Link from "next/link";
+import { addresses, company, contacts, footerNav } from "@/content/site";
 import type { Address } from "@/content/types";
 
 function Office({ a }: { a: Address }) {
@@ -50,9 +51,22 @@ export function Footer() {
         </div>
       </div>
       <div className="border-t border-ivory/15">
-        <p className="mx-auto max-w-7xl px-6 py-5 text-xs text-warm-grey">
-          © {company.name}
-        </p>
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-6 py-5 text-xs text-warm-grey">
+          <p>© {company.name}</p>
+          <nav aria-label="Footer">
+            <ul className="flex flex-wrap gap-x-6 gap-y-2">
+              {footerNav
+                .filter((item) => item.available)
+                .map((item) => (
+                  <li key={item.href}>
+                    <Link href={item.href} className="underline underline-offset-4 hover:text-ivory">
+                      {item.label}
+                    </Link>
+                  </li>
+                ))}
+            </ul>
+          </nav>
+        </div>
       </div>
     </footer>
   );

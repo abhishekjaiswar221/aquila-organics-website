@@ -12,6 +12,7 @@ export function absoluteUrl(base: string, pathname: string): string {
 }
 
 export const CATALOGUE_PATH = "/aroma-chemicals";
+export const PRIVACY_PATH = "/privacy";
 
 export function productPath(slug: string): string {
   return `${CATALOGUE_PATH}/${encodeURIComponent(slug)}`;

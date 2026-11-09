@@ -4,6 +4,7 @@ import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useRef } from "react";
 import { contacts, segments } from "@/content/site";
+import { EnquiryLink } from "./enquiry-link";
 
 export function MobileDrawer() {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -46,9 +47,12 @@ export function MobileDrawer() {
               </ul>
             </div>
           ))}
-          <a href={`mailto:${contacts.sales}`} className="inline-block bg-charcoal px-6 py-3 text-sm text-ivory">
-            Request a consultation
-          </a>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-4 border-t border-charcoal/20 pt-6">
+            <EnquiryLink onNavigate={close} className="text-base" />
+            <a href={`mailto:${contacts.sales}`} className="inline-block bg-charcoal px-6 py-3 text-sm text-ivory">
+              Request a consultation
+            </a>
+          </div>
         </nav>
       </dialog>
     </>

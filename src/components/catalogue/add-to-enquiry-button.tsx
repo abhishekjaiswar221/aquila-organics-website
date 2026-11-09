@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { addProduct, useEnquiryList } from "@/features/enquiries/store-client";
+import { RFQ_PATH } from "@/features/enquiries/confirmation";
+import { MAX_LIST_ITEMS, addProduct, useEnquiryList } from "@/features/enquiries/store-client";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -12,13 +14,17 @@ interface Props {
   className?: string;
 }
 
+const viewLinkCls = "text-bronze-text underline underline-offset-4 decoration-1 hover:decoration-2";
+
 /**
  * Adds the product id to the browser-side enquiry list (Task 9 store). Server
  * HTML always shows the button; after hydration it reflects the stored list.
+ * Once added (or when the list is full) it shows a status and a link to /rfq.
  */
 export function AddToEnquiryButton({ productId, productName, variant = "primary", className }: Props) {
   const list = useEnquiryList();
   const added = list.includes(productId.toLowerCase());
+  const full = !added && list.length >= MAX_LIST_ITEMS;
   const [justAdded, setJustAdded] = useState(false);
   const confirmation = useRef<HTMLParagraphElement>(null);
 
@@ -27,23 +33,38 @@ export function AddToEnquiryButton({ productId, productName, variant = "primary"
     if (justAdded) confirmation.current?.focus();
   }, [justAdded]);
 
-  if (added) {
-    // TODO(task-10): link to /rfq once the enquiry page exists.
+  const sr = variant === "compact" ? <span className="sr-only">: {productName}</span> : null;
+  const textCls = variant === "primary" ? "py-3.5 text-sm font-medium" : "font-mono text-xs";
+
+  if (added || full) {
     return (
-      <p
-        ref={confirmation}
-        tabIndex={-1}
-        role={justAdded ? "status" : undefined}
+      <div
         className={cn(
-          "inline-flex items-center gap-2 outline-none",
-          variant === "primary" ? "py-3.5 text-sm font-medium" : "font-mono text-xs text-bronze-text",
+          "flex flex-wrap items-center gap-x-4 gap-y-1",
+          variant === "compact" && "md:flex-col md:items-end md:gap-y-0.5",
           className,
         )}
       >
-        <span aria-hidden className="inline-block size-1.5 rounded-full bg-olive-deep" />
-        Added to your enquiry list
-        {variant === "compact" ? <span className="sr-only">: {productName}</span> : null}
-      </p>
+        <p
+          ref={confirmation}
+          tabIndex={-1}
+          role={justAdded ? "status" : undefined}
+          className={cn("inline-flex items-center gap-2 outline-none", textCls, added && variant === "compact" && "text-bronze-text")}
+        >
+          {added ? (
+            <>
+              <span aria-hidden className="inline-block size-1.5 rounded-full bg-olive-deep" />
+              Added to your enquiry list
+              {sr}
+            </>
+          ) : (
+            <>Your enquiry list is full ({MAX_LIST_ITEMS} products){sr}</>
+          )}
+        </p>
+        <Link href={RFQ_PATH} className={cn(viewLinkCls, variant === "primary" ? "text-sm" : "text-xs")}>
+          View your enquiry
+        </Link>
+      </div>
     );
   }
 
@@ -63,7 +84,7 @@ export function AddToEnquiryButton({ productId, productName, variant = "primary"
       )}
     >
       Add to enquiry
-      {variant === "compact" ? <span className="sr-only">: {productName}</span> : null}
+      {sr}
     </button>
   );
 }

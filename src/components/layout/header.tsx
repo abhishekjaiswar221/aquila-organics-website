@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { company, contacts } from "@/content/site";
+import { EnquiryLink } from "./enquiry-link";
 import { MegaMenu } from "./mega-menu";
 import { MobileDrawer } from "./mobile-drawer";
 
@@ -25,6 +26,7 @@ export function Header() {
         </Link>
         <nav aria-label="Primary" className="hidden items-center gap-10 lg:flex">
           <MegaMenu />
+          <EnquiryLink />
           <a
             href={`mailto:${contacts.sales}`}
             className="bg-charcoal px-6 py-3 text-sm font-medium tracking-wide text-ivory transition-colors hover:bg-bronze-text"
