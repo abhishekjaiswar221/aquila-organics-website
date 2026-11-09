@@ -5,7 +5,9 @@
 //
 // CSV header: name,slug,code,casNumber,category,description,sourceNote
 // (optional "applications" column, semicolon-separated). Existing products
-// (matched by slug) keep their status and verified flag.
+// (matched by slug) keep their status and verified flag; a row whose slug matches
+// an existing product updates that product, a blank CAS does not clear a stored
+// CAS, and verified products are skipped, never overwritten.
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { csvToProductRows } from "@/features/products/csv";

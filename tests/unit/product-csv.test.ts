@@ -31,3 +31,15 @@ describe("csvToProductRows", () => {
     ]);
   });
 });
+
+describe("csv edge cases", () => {
+  it("ignores a leading BOM in the header", () => {
+    expect(csvToProductRows("\u{FEFF}name,casNumber\nPadma,101-48-4\n")).toEqual([
+      { name: "Padma", casNumber: "101-48-4" },
+    ]);
+  });
+
+  it("tolerates a ragged row with fewer cells than the header", () => {
+    expect(csvToProductRows("name,casNumber,category\nPadma\n")).toEqual([{ name: "Padma" }]);
+  });
+});

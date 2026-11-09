@@ -99,23 +99,72 @@ describe("importProducts behaviour", () => {
     expect(slugs).toEqual(["twin", "twin-2"]);
   });
 
-  it("does not un-publish or un-verify an existing product on re-import", async () => {
-    await importProducts([{ name: "Padma", casNumber: "101-48-4" }], db);
+  it("skips an existing verified product and writes none of its fields", async () => {
+    await importProducts(
+      [{ name: "Padma", casNumber: "101-48-4", category: "Original", description: "Hand written", sourceNote: "verified by client" }],
+      db,
+    );
     const publishedAt = new Date();
     await db.product.update({
       where: { slug: "padma" },
       data: { status: "PUBLISHED", verified: true, publishedAt },
     });
+    const before = await db.product.findUniqueOrThrow({ where: { slug: "padma" } });
+    const result = await importProducts(
+      [
+        {
+          name: "Padma Changed",
+          slug: "padma",
+          casNumber: "87-22-9",
+          category: "Other",
+          description: "Legacy text",
+          sourceNote: "corrected",
+          specifications: [{ label: "A", value: "B" }],
+          applications: ["X"],
+        },
+      ],
+      db,
+    );
+    expect(result).toEqual({
+      created: 0,
+      updated: 0,
+      skipped: [{ index: 0, reason: "verified product, not overwritten" }],
+    });
+    const after = await db.product.findUniqueOrThrow({ where: { slug: "padma" } });
+    expect(after).toEqual(before);
+    expect(after.status).toBe("PUBLISHED");
+    expect(after.casNormalized).toBe("101484");
+    expect(await db.productSpecification.count()).toBe(0);
+    expect(await db.productApplication.count()).toBe(0);
+    expect(await db.category.count({ where: { slug: "other" } })).toBe(0);
+  });
+
+  it("still updates an existing unverified product without touching status or verified", async () => {
+    await importProducts([{ name: "Padma", casNumber: "101-48-4" }], db);
     const result = await importProducts(
       [{ name: "Padma", casNumber: "101-48-4", sourceNote: "corrected" }],
       db,
     );
     expect(result).toEqual({ created: 0, updated: 1, skipped: [] });
     const p = await db.product.findUniqueOrThrow({ where: { slug: "padma" } });
-    expect(p.status).toBe("PUBLISHED");
-    expect(p.verified).toBe(true);
-    expect(p.publishedAt?.getTime()).toBe(publishedAt.getTime());
     expect(p.sourceNote).toBe("corrected");
+    expect(p.status).toBe("DRAFT");
+    expect(p.verified).toBe(false);
+  });
+
+  it("re-importing the legacy file leaves a manually verified CAS exactly as set", async () => {
+    await importProducts(legacy, db);
+    await db.product.update({
+      where: { slug: "padma" },
+      data: { casNumber: "9999-99-9", casNormalized: "9999999", verified: true },
+    });
+    const result = await importProducts(legacy, db);
+    expect(result.updated).toBe(19);
+    expect(result.skipped).toHaveLength(1);
+    expect(result.skipped[0]?.reason).toBe("verified product, not overwritten");
+    const p = await db.product.findUniqueOrThrow({ where: { slug: "padma" } });
+    expect(p.casNumber).toBe("9999-99-9");
+    expect(p.casNormalized).toBe("9999999");
   });
 
   it("replaces specifications and applications only when supplied", async () => {

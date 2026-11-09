@@ -2,6 +2,8 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import { normalizeCas } from "@/lib/cas";
 import { assignUniqueSlugs, productInputSchema, slugify, type ProductInput } from "./schema";
 
+export const VERIFIED_SKIP_REASON = "verified product, not overwritten";
+
 export type ImportResult = {
   created: number;
   updated: number;
@@ -41,7 +43,8 @@ export async function importProducts(rows: unknown[], db: PrismaClient): Promise
     const slug = slugs[i] ?? data.slug;
     try {
       const outcome = await importOne(db, { ...data, slug });
-      result[outcome] += 1;
+      if (outcome === "skipped") result.skipped.push({ index, reason: VERIFIED_SKIP_REASON });
+      else result[outcome] += 1;
     } catch (error) {
       result.skipped.push({ index, reason: describeError(error) });
     }
@@ -51,10 +54,17 @@ export async function importProducts(rows: unknown[], db: PrismaClient): Promise
   return result;
 }
 
-async function importOne(db: PrismaClient, data: ProductInput): Promise<"created" | "updated"> {
+async function importOne(db: PrismaClient, data: ProductInput): Promise<"created" | "updated" | "skipped"> {
   const casNormalized = data.casNumber ? normalizeCas(data.casNumber) : undefined;
 
   return db.$transaction(async (tx) => {
+    const existing = await tx.product.findUnique({
+      where: { slug: data.slug },
+      select: { id: true, verified: true },
+    });
+    // A verified product is never overwritten (its CAS may have been checked by hand).
+    if (existing?.verified) return "skipped";
+
     let categoryId: string | undefined;
     if (data.category) {
       const slug = slugify(data.category);
@@ -67,7 +77,9 @@ async function importOne(db: PrismaClient, data: ProductInput): Promise<"created
       categoryId = category.id;
     }
 
-    // Only fields the row supplies are written on update; status, verified and
+    // Rows with the same slug as an existing product update that product (upsert
+    // by slug). Only fields the row supplies are written, so a blank CAS does NOT
+    // clear a stored one; status, verified and
     // publishedAt are never touched for an existing product.
     const fields = {
       name: data.name,
@@ -78,14 +90,23 @@ async function importOne(db: PrismaClient, data: ProductInput): Promise<"created
       ...(data.sourceNote !== undefined && { sourceNote: data.sourceNote }),
     };
 
-    const existing = await tx.product.findUnique({ where: { slug: data.slug }, select: { id: true } });
-    const productId = existing
-      ? (await tx.product.update({ where: { id: existing.id }, data: fields })).id
-      : (
-          await tx.product.create({
-            data: { ...fields, slug: data.slug, status: "DRAFT", verified: false },
-          })
-        ).id;
+    let productId: string;
+    if (existing) {
+      // The verified:false guard makes check and write atomic: if the product was
+      // verified after the read above, nothing is written and the row is skipped.
+      const { count } = await tx.product.updateMany({
+        where: { id: existing.id, verified: false },
+        data: fields,
+      });
+      if (count === 0) return "skipped";
+      productId = existing.id;
+    } else {
+      productId = (
+        await tx.product.create({
+          data: { ...fields, slug: data.slug, status: "DRAFT", verified: false },
+        })
+      ).id;
+    }
 
     if (data.specifications) {
       await tx.productSpecification.deleteMany({ where: { productId } });
