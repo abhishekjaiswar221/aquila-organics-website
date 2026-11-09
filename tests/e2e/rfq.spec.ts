@@ -1,10 +1,10 @@
-import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
 import { E2E_STORAGE_ROOT } from "./support/e2e-env";
 import { DRAFT, ETHANOL, WATER } from "./support/fixtures";
 import { deleteEnquiriesFor, enquiriesFor, seedRfqRateLimit, testEmail, testIp } from "./support/rfq-db";
+import { expectAxeClean, expectNoOverflow } from "./support/quality";
 
 const ENQUIRY_KEY = "aquila.enquiry.v1";
 const UNKNOWN_ID = "e2e00000-0000-4000-8000-00000000fffe";
@@ -65,25 +65,6 @@ async function expectConfirmation(page: Page): Promise<string> {
   expect(reference ?? "").toMatch(REF);
   expect(page.url()).toContain(`ref=${reference}`);
   return reference ?? "";
-}
-
-async function expectNoOverflow(page: Page) {
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-  expect(overflow).toBeLessThanOrEqual(0);
-}
-
-async function expectAxeClean(page: Page) {
-  const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
-  expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).slice(0, 3).join(" | ")}`)).toEqual([]);
-}
-
-async function expectHeadingOutline(page: Page) {
-  await expect(page.locator("h1")).toHaveCount(1);
-  const levels = await page.$$eval("h1,h2,h3,h4,h5,h6", (hs) => hs.map((h) => Number(h.tagName[1])));
-  expect(levels[0]).toBe(1);
-  for (let i = 1; i < levels.length; i++) {
-    expect(levels[i] - levels[i - 1], `heading #${i}`).toBeLessThanOrEqual(1);
-  }
 }
 
 function plantList(page: Page, ids: string[]) {
@@ -521,34 +502,14 @@ test.describe("rfq: privacy page", () => {
 });
 
 test.describe("rfq: quality gates", () => {
-  test("no horizontal overflow", async ({ page }) => {
-    await plantList(page, [ETHANOL.id, WATER.id]);
-    for (const url of ["/rfq", "/rfq/confirmation?ref=AQ-2026-000042", "/rfq/confirmation", "/privacy"]) {
-      await page.goto(url);
-      if (url === "/rfq") await expect(line(page, 2)).toBeVisible();
-      await expectNoOverflow(page);
-    }
-  });
-
-  test("axe finds no violations", async ({ page }) => {
+  // Overflow, axe and heading gates for /rfq (with saved products), both
+  // confirmation states and /privacy live in quality-catalogue.spec.ts; the
+  // empty form state is checked here because it is specific to this spec.
+  test("axe finds no violations on the empty form", async ({ page }) => {
     await page.goto("/rfq");
     await expect(line(page, 1)).toBeVisible();
     await expectAxeClean(page);
-    await plantList(page, [ETHANOL.id, WATER.id]);
-    await page.goto("/rfq");
-    await expect(line(page, 2)).toBeVisible();
-    await expectAxeClean(page);
-    for (const url of ["/rfq/confirmation?ref=AQ-2026-000042", "/rfq/confirmation", "/privacy"]) {
-      await page.goto(url);
-      await expectAxeClean(page);
-    }
-  });
-
-  test("one h1 and no skipped heading levels", async ({ page }) => {
-    for (const url of ["/rfq", "/rfq/confirmation?ref=AQ-2026-000042", "/rfq/confirmation", "/privacy"]) {
-      await page.goto(url);
-      await expectHeadingOutline(page);
-    }
+    await expectNoOverflow(page);
   });
 
   test("metadata: titles, descriptions, confirmation noindex", async ({ page }) => {

@@ -1,4 +1,3 @@
-import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import {
   activitiesOf,
@@ -12,6 +11,7 @@ import {
 } from "./support/admin";
 import { E2E_BASE_URL } from "./support/e2e-env";
 import { ADMIN_USERS, ARCHIVED, DRAFT, ETHANOL } from "./support/fixtures";
+import { expectAxeClean, expectHeadingOutline, expectNoOverflow } from "./support/quality";
 import { testIp, withDb } from "./support/rfq-db";
 
 /*
@@ -31,25 +31,6 @@ test.beforeEach(async ({ page }) => {
 });
 
 const isDesktop = (info: TestInfo) => info.project.use.viewport!.width >= 1024;
-
-async function expectNoOverflow(page: Page) {
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-  expect(overflow).toBeLessThanOrEqual(0);
-}
-
-async function expectAxeClean(page: Page) {
-  const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
-  expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).slice(0, 3).join(" | ")}`)).toEqual([]);
-}
-
-async function expectHeadingOutline(page: Page) {
-  await expect(page.locator("h1")).toHaveCount(1);
-  const levels = await page.$$eval("h1,h2,h3,h4,h5,h6", (hs) => hs.map((h) => Number(h.tagName[1])));
-  expect(levels[0]).toBe(1);
-  for (let i = 1; i < levels.length; i++) {
-    expect(levels[i] - levels[i - 1], `heading #${i}`).toBeLessThanOrEqual(1);
-  }
-}
 
 async function expectNoindex(page: Page, path: string) {
   const res = await page.goto(path);
@@ -331,8 +312,9 @@ test.describe("admin: access control", () => {
     await page.waitForURL(/\/admin\/login$/);
   });
 
-  test("login page: noindex, axe, overflow, headings", async ({ page }) => {
-    await expectQualityGates(page, "/admin/login");
+  // Overflow, axe and heading gates for /admin/login: quality-catalogue.spec.ts.
+  test("login page: noindex header and meta, no sign-up link", async ({ page }) => {
+    await expectNoindex(page, "/admin/login");
     await expect(page.getByRole("link", { name: /sign up|register|create account/i })).toHaveCount(0);
   });
 });

@@ -1,4 +1,3 @@
-import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
@@ -13,25 +12,6 @@ async function search(page: Page, q: string) {
   await page.getByLabel("Search the catalogue").fill(q);
   await page.getByRole("button", { name: "Search" }).click();
   await page.waitForURL(/[?&]q=/);
-}
-
-async function expectNoOverflow(page: Page) {
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-  expect(overflow).toBeLessThanOrEqual(0);
-}
-
-async function expectAxeClean(page: Page) {
-  const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
-  expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).slice(0, 3).join(" | ")}`)).toEqual([]);
-}
-
-async function expectHeadingOutline(page: Page) {
-  await expect(page.locator("h1")).toHaveCount(1);
-  const levels = await page.$$eval("h1,h2,h3,h4,h5,h6", (hs) => hs.map((h) => Number(h.tagName[1])));
-  expect(levels[0]).toBe(1);
-  for (let i = 1; i < levels.length; i++) {
-    expect(levels[i] - levels[i - 1], `heading #${i}`).toBeLessThanOrEqual(1);
-  }
 }
 
 test.describe("catalogue list", () => {
@@ -131,24 +111,7 @@ test.describe("catalogue list", () => {
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex, follow");
   });
 
-  test("no horizontal overflow", async ({ page }) => {
-    await page.goto(LIST);
-    await expectNoOverflow(page);
-    await page.goto(`${LIST}?q=zzz`);
-    await expectNoOverflow(page);
-  });
-
-  test("axe finds no violations", async ({ page }) => {
-    await page.goto(LIST);
-    await expectAxeClean(page);
-    await page.goto(`${LIST}?q=zzz`);
-    await expectAxeClean(page);
-  });
-
-  test("one h1 and no skipped heading levels", async ({ page }) => {
-    await page.goto(LIST);
-    await expectHeadingOutline(page);
-  });
+  // Overflow, axe and heading gates for the list states: quality-catalogue.spec.ts.
 });
 
 test.describe("catalogue without JavaScript", () => {
@@ -252,26 +215,7 @@ test.describe("product detail", () => {
     }
   });
 
-  test("no horizontal overflow", async ({ page }) => {
-    for (const slug of [ETHANOL.slug, MINIMAL.slug]) {
-      await page.goto(`${LIST}/${slug}`);
-      await expectNoOverflow(page);
-    }
-  });
-
-  test("axe finds no violations", async ({ page }) => {
-    for (const slug of [ETHANOL.slug, MINIMAL.slug]) {
-      await page.goto(`${LIST}/${slug}`);
-      await expectAxeClean(page);
-    }
-  });
-
-  test("one h1 and no skipped heading levels", async ({ page }) => {
-    for (const slug of [ETHANOL.slug, MINIMAL.slug]) {
-      await page.goto(`${LIST}/${slug}`);
-      await expectHeadingOutline(page);
-    }
-  });
+  // Overflow, axe and heading gates for product and 404 pages: quality-catalogue.spec.ts.
 });
 
 test.describe("add to enquiry", () => {
@@ -325,29 +269,7 @@ test.describe("documents", () => {
   });
 });
 
-test.describe("robots and sitemap", () => {
-  test("sitemap lists published products only", async ({ request }) => {
-    const res = await request.get("/sitemap.xml");
-    expect(res.status()).toBe(200);
-    const xml = await res.text();
-    expect(xml).toContain(`/aroma-chemicals/${ETHANOL.slug}</loc>`);
-    expect(xml).toContain(`/aroma-chemicals/${MINIMAL.slug}</loc>`);
-    expect(xml).toContain("/aroma-chemicals</loc>");
-    expect(xml).not.toContain(DRAFT.slug);
-    expect(xml).not.toContain(ARCHIVED.slug);
-    expect(xml).not.toMatch(/\/admin|\/api/);
-  });
-
-  test("robots allows the site, disallows admin and api, and names the sitemap", async ({ request }) => {
-    const res = await request.get("/robots.txt");
-    expect(res.status()).toBe(200);
-    const txt = await res.text();
-    expect(txt).toMatch(/Allow: \/\n/);
-    expect(txt).toContain("Disallow: /admin");
-    expect(txt).toContain("Disallow: /api");
-    expect(txt).toMatch(/Sitemap: http.*\/sitemap\.xml/);
-  });
-});
+// robots.txt and sitemap.xml: quality-catalogue.spec.ts.
 
 test.describe("entry points", () => {
   test("homepage CTAs link to the catalogue", async ({ page }) => {
