@@ -8,13 +8,13 @@ export interface EmailItem {
 /**
  * The acknowledgement goes to whatever address the visitor typed, so it is
  * kept minimal: it must not become a way to deliver someone else's text to a
- * third party. Only the reference, the number of product lines and the
- * visitor's (sanitised) name in the greeting; no item names, notes, company
- * or requirements. The internal notification carries the full details.
+ * third party. Only a constant greeting, the reference and the number of
+ * product lines; nothing the visitor typed (not even their name: a "name"
+ * can be a phishing line, and mail clients autolink domains). The internal
+ * notification carries the full details.
  */
 export interface AcknowledgementInput {
   reference: string;
-  fullName: string;
   lineCount: number;
 }
 
@@ -53,15 +53,7 @@ function oneLine(value: string): string {
   return value.replace(LINE_BREAKS, " ").trim();
 }
 
-// Controls, bidi overrides, zero-width characters and the BOM: never wanted in a greeting.
-const INVISIBLE = new RegExp("[\u0000-\u001F\u007F-\u009F​-‏‪-‮⁠-⁤⁦-⁩﻿]", "g");
-const MAX_GREETING_NAME = 120;
-
-/** The visitor's name as used in the greeting: one line, no invisible characters, bounded. */
-function greetingName(value: string): string {
-  const name = oneLine(value).replace(INVISIBLE, "").replace(/\s+/g, " ").trim();
-  return [...name].slice(0, MAX_GREETING_NAME).join("");
-}
+const ACK_GREETING = "Dear customer,";
 
 const h = escapeHtml;
 
@@ -93,18 +85,17 @@ function productLines(n: number): string {
 }
 
 export function acknowledgementEmail(e: AcknowledgementInput): RenderedEmail {
-  const name = greetingName(e.fullName);
   const lines = productLines(e.lineCount);
   const subject = oneLine(`We received your enquiry ${e.reference}`);
   const html = wrapHtml(
-    `<p>Dear ${h(name)},</p>` +
+    `<p>${h(ACK_GREETING)}</p>` +
       `<p>Thank you for your enquiry. Your reference is <strong>${h(e.reference)}</strong>.</p>` +
       `<p>We have received your request for ${h(lines)}.</p>` +
       `<p>Our team will review your request and reply shortly. Please quote the reference in any correspondence.</p>` +
       `<p>Aquila Organics</p>`,
   );
   const text =
-    `Dear ${name},\n\n` +
+    `${ACK_GREETING}\n\n` +
     `Thank you for your enquiry. Your reference is ${e.reference}.\n\n` +
     `We have received your request for ${lines}.\n\n` +
     `Our team will review your request and reply shortly. Please quote the reference in any correspondence.\n\n` +

@@ -814,18 +814,31 @@ describe("acknowledgement limit per recipient", () => {
           { productId: product.id, name: "TEST-Linalool", quantity: "25", unit: "KG", notes: "TEST-line-note visit evil.example" },
           { name: "TEST-Free item click here", quantity: "1", unit: "L" },
         ],
-        { additionalRequirements: "TEST-requirements text", companyName: "TEST-Company spam" },
+        {
+          additionalRequirements: "TEST-requirements text",
+          companyName: "TEST-Company spam",
+          fullName: "Claim your refund at evil-name.example/r now",
+        },
       ),
     );
     expect(result.ok).toBe(true);
     const [ack] = acksTo(JANE);
     const internal = state.sent.find((m) => m.to.includes("sales@test.example") || m.to.includes("sales-fragrance@test.example"));
-    for (const secret of ["TEST-line-note", "evil.example", "TEST-Free item", "TEST-requirements", "TEST-Company", "TEST-Linalool"]) {
+    for (const secret of [
+      "TEST-line-note",
+      "evil.example",
+      "TEST-Free item",
+      "TEST-requirements",
+      "TEST-Company",
+      "TEST-Linalool",
+      "Claim your refund",
+      "evil-name.example",
+    ]) {
       expect(`${ack.subject}${ack.html}${ack.text}`).not.toContain(secret);
-      expect(internal?.text).toContain(secret);
+      expect(`${internal?.subject}${internal?.text}`).toContain(secret);
     }
     expect(ack.text).toContain("2 product lines");
     expect(ack.text).toContain(result.ok ? result.reference : "-");
-    expect(ack.text).toContain("Dear TEST Jane Buyer,");
+    expect(ack.text.startsWith("Dear customer,")).toBe(true);
   });
 });

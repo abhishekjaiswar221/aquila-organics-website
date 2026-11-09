@@ -436,7 +436,7 @@ async function notify(
       enquiry.id,
       "acknowledgement",
       [data.email],
-      acknowledgementEmail({ reference: enquiry.reference, fullName: data.fullName, lineCount: record.lines.length }),
+      acknowledgementEmail({ reference: enquiry.reference, lineCount: record.lines.length }),
     );
   } else {
     console.warn(`[rfq] acknowledgement skipped for ${enquiry.reference}: ${skipReason}`);
