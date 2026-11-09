@@ -3,7 +3,7 @@ import {
   downloadFilename,
   safeDocumentContentType,
 } from "@/features/products/document-download";
-import { getPublishedDocumentFile } from "@/features/products/queries";
+import { getPublishedDocumentFile } from "@/features/products/document-queries";
 import { getStorage } from "@/lib/storage";
 
 // Request-time by nature (reads params and the database); never cached, so a

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { getPublishedDocumentFile, getPublishedSitemapEntries } from "@/features/products/queries";
+import { getPublishedDocumentFile } from "@/features/products/document-queries";
+import { getPublishedSitemapEntries } from "@/features/products/queries";
 import { db, resetDb } from "./setup";
 
 type Status = "DRAFT" | "PUBLISHED" | "ARCHIVED";
