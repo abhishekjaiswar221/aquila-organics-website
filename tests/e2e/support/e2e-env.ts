@@ -8,7 +8,20 @@ import { resolveTestDatabaseUrl } from "../../integration/env-guard";
 // dedicated *_test database, so the suite can never touch development data.
 
 export const REPO_ROOT = path.resolve(__dirname, "../../..");
-export const E2E_PORT = 3100;
+/**
+ * Port for the e2e build (`next start`). Defaults to 3100; set E2E_PORT in the
+ * environment when another server already holds it (do not edit this default).
+ */
+export const E2E_PORT = parsePort(process.env.E2E_PORT);
+
+function parsePort(value: string | undefined): number {
+  if (value === undefined || value.trim() === "") return 3100;
+  const port = Number(value);
+  if (!Number.isInteger(port) || port < 1024 || port > 65535) {
+    throw new Error(`E2E_PORT must be an integer from 1024 to 65535, got "${value}".`);
+  }
+  return port;
+}
 export const E2E_BASE_URL = `http://localhost:${E2E_PORT}`;
 /** LocalStorage root for e2e document fixtures (under the git-ignored /storage). */
 export const E2E_STORAGE_ROOT = path.join(REPO_ROOT, "storage", "e2e", "uploads");
