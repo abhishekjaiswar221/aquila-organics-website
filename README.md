@@ -59,11 +59,11 @@ This starts the container `aquila-postgres` on port 5432. On first start it crea
 cp .env.example .env
 ```
 
-The Prisma CLI, the scripts and the test configs read `.env`. Next.js reads it as well. `.env.example` holds placeholders only. Never commit `.env`.
+The Prisma CLI, the scripts and the test configs read `.env`. Next.js reads it as well. `.env.example` holds placeholders only. Never commit `.env`. `npm run build` needs the server variables below (`BETTER_AUTH_*`, `STORAGE_DRIVER`, `EMAIL_DRIVER`, `RATE_LIMIT_SALT`, `DATABASE_URL`) because it prerenders pages that read them.
 
 | Variables | Purpose |
 |---|---|
-| `NEXT_PUBLIC_SITE_URL` | Public base URL for canonical links, JSON-LD, the sitemap and robots.txt. It is inlined at build time, so rebuild after changing it. If it is unset in production, the site falls back to `http://localhost:3000` and the server logs one warning per process. The build does not fail, so set it for every production build |
+| `NEXT_PUBLIC_SITE_URL` | Public base URL for canonical links, JSON-LD, the sitemap and robots.txt. It is inlined at build time, so rebuild after changing it. If it is unset in production, the site falls back to `http://localhost:3000` and logs one warning per process (`next start` once; `next build` once per build worker). The build does not fail, so set it for every production build |
 | `DATABASE_URL`, `DATABASE_URL_TEST` | Development and test databases. The test URL must name a different database (the e2e suite also requires a name ending in `_test`) |
 | `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` | Session signing secret (at least 32 random characters, e.g. `openssl rand -base64 32`) and the site's own URL |
 | `STORAGE_DRIVER`, `STORAGE_LOCAL_ROOT` | `local` is the only driver. The root is optional (default `./storage/uploads`) |
