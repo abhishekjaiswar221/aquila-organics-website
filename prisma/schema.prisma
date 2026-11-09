@@ -1,0 +1,347 @@
+// Aquila Organics data model (spec 2026-11-08-data-catalogue-rfq-design.md §3).
+// Every primary key is a database-generated UUID; every table has createdAt/updatedAt.
+// Table names are lowercase snake_case (@@map), matching the Better Auth tables.
+//
+// Raw SQL in the migration adds what Prisma cannot express: the pg_trgm
+// extension and the product_published_requires_verified CHECK constraint.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  ADMINISTRATOR
+  SALES_MANAGER
+  SALES_EXECUTIVE
+  CONTENT_EDITOR
+  HR_MANAGER
+}
+
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum EnquiryType {
+  FRAGRANCES
+  AROMA_CHEMICALS
+  FLAVOURS
+  GENERAL
+  CAREERS
+}
+
+enum EnquiryStatus {
+  NEW
+  ASSIGNED
+  CONTACTED
+  QUOTATION_SENT
+  NEGOTIATION
+  WON
+  LOST
+}
+
+enum DocumentKind {
+  DATASHEET
+  SDS
+  OTHER
+}
+
+enum Unit {
+  KG
+  G
+  MT
+  L
+  ML
+  OTHER
+}
+
+// ─── Auth (Better Auth 1.7.18) ────────────────────────────────────────────────
+// Generated with `npx auth@1.7.18 generate --adapter prisma --dialect postgresql`
+// (advanced.database.generateId: "uuid", user.additionalFields.role). Hand edits:
+// `role` uses the Role enum, defaulting to the least-privileged CONTENT_EDITOR so
+// no sign-up can ever produce an admin; and id defaults are spelled
+// gen_random_uuid() (as Postgres stores them) instead of
+// pg_catalog.gen_random_uuid(), which Prisma would otherwise report as drift.
+// The app models below use the same UUID default.
+
+model User {
+  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String
+  email         String
+  emailVerified Boolean           @default(false)
+  image         String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  role          Role              @default(CONTENT_EDITOR)
+  sessions      Session[]
+  accounts      Account[]
+  activities    EnquiryActivity[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId             String
+  providerId            String
+  userId                String    @db.Uuid
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ─── Catalogue ────────────────────────────────────────────────────────────────
+
+model Category {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  slug      String    @unique
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  products  Product[]
+
+  @@map("category")
+}
+
+/// A PUBLISHED product must be verified with a non-empty name and slug
+/// (CHECK constraint product_published_requires_verified, added in SQL).
+model Product {
+  id             String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  slug           String                 @unique
+  /// Optional; unique when set (Postgres allows many NULLs in a unique index).
+  code           String?                @unique
+  casNumber      String?
+  /// Digits only, for hyphen-insensitive CAS search.
+  casNormalized  String?
+  categoryId     String?                @db.Uuid
+  category       Category?              @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  description    String?
+  status         ProductStatus          @default(DRAFT)
+  publishedAt    DateTime?
+  seoTitle       String?
+  seoDescription String?
+  /// Provenance, e.g. "legacy site, unverified".
+  sourceNote     String?
+  verified       Boolean                @default(false)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  specifications ProductSpecification[]
+  applications   ProductApplication[]
+  documents      ProductDocument[]
+  enquiryItems   EnquiryItem[]
+
+  @@index([casNormalized])
+  @@index([status])
+  @@index([categoryId])
+  // Trigram search (needs pg_trgm, created in the migration). Declared here so
+  // later migrations do not treat them as drift and drop them.
+  @@index([name(ops: raw("gin_trgm_ops"))], map: "product_name_trgm_idx", type: Gin)
+  @@index([code(ops: raw("gin_trgm_ops"))], map: "product_code_trgm_idx", type: Gin)
+  @@map("product")
+}
+
+model ProductSpecification {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId String   @db.Uuid
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  label     String
+  value     String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+  @@map("product_specification")
+}
+
+model ProductApplication {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId String   @db.Uuid
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+  @@map("product_application")
+}
+
+model ProductDocument {
+  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId  String       @db.Uuid
+  product    Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  kind       DocumentKind
+  title      String
+  /// Private storage location; never exposed in public responses.
+  storageKey String       @unique
+  mimeType   String
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@index([productId])
+  @@map("product_document")
+}
+
+// ─── Enquiries ────────────────────────────────────────────────────────────────
+
+model Enquiry {
+  id                     String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// Human-readable, e.g. AQ-2026-000123.
+  reference              String              @unique
+  /// Client-generated idempotency token (one random uuid per form instance);
+  /// a replay of the same token returns the existing reference.
+  submissionId           String?             @unique @db.Uuid
+  type                   EnquiryType
+  status                 EnquiryStatus       @default(NEW)
+  fullName               String
+  companyName            String?
+  email                  String
+  phone                  String?
+  country                String?
+  businessSegment        String?
+  intendedApplication    String?
+  additionalRequirements String?
+  consentAt              DateTime
+  ipHash                 String?
+  userAgent              String?
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  items                  EnquiryItem[]
+  attachments            EnquiryAttachment[]
+  activities             EnquiryActivity[]
+
+  @@index([status, createdAt])
+  @@index([type])
+  @@index([createdAt])
+  @@map("enquiry")
+}
+
+model EnquiryItem {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  enquiryId           String   @db.Uuid
+  enquiry             Enquiry  @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  /// Cleared if the product is deleted; the snapshots keep the line readable.
+  productId           String?  @db.Uuid
+  product             Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productNameSnapshot String
+  casSnapshot         String?
+  quantity            Decimal  @db.Decimal(14, 3)
+  unit                Unit
+  notes               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([enquiryId])
+  @@index([productId])
+  @@map("enquiry_item")
+}
+
+model EnquiryAttachment {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  enquiryId  String   @db.Uuid
+  enquiry    Enquiry  @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  filename   String
+  mimeType   String
+  sizeBytes  Int
+  /// Random key in private storage; never exposed in public responses.
+  storageKey String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([enquiryId])
+  @@map("enquiry_attachment")
+}
+
+/// Append-only log: creation, status changes, attachment access.
+model EnquiryActivity {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  enquiryId String   @db.Uuid
+  enquiry   Enquiry  @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  /// Null for system/visitor actions; kept null if the user is deleted.
+  actorId   String?  @db.Uuid
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action    String
+  detail    Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([enquiryId, createdAt])
+  @@index([actorId])
+  @@map("enquiry_activity")
+}
+
+// ─── System ───────────────────────────────────────────────────────────────────
+
+model SiteSetting {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// e.g. notification.recipients.AROMA_CHEMICALS
+  key       String   @unique
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("site_setting")
+}
+
+model RateLimitHit {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key         String
+  windowStart DateTime
+  count       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([key, windowStart])
+  @@index([windowStart])
+  @@map("rate_limit_hit")
+}

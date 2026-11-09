@@ -1,0 +1,3 @@
+# Prisma checksums migration files byte for byte: never convert their line endings.
+prisma/migrations/** text eol=lf
+*.sql text eol=lf

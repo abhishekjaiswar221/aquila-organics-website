@@ -30,7 +30,7 @@ Status key: ✅ verified on live site · 📄 supplied in brief only · ⚠️ c
 | Compliance reports (two six-month PDFs) | not stated | Apr 2025–Mar 2026 | ❓ Second period ended 2026-03; ask for the latest |
 | EcoVadis | logo only | none | 🛑 No rating, medal or year shown; don't display a badge without proof |
 
-The data model carries `issuer`, `issuedAt`, `expiresAt`, `scope`; the UI hides anything past expiry automatically.
+No certificate data model, page or badge exists yet: the homepage certifications strip is `hidden` (`src/content/home-business.ts`) and sub-project 2 added none. When certificates are built (sustainability/certifications sub-project), the model should carry `issuer`, `issuedAt`, `expiresAt` and `scope`, and the UI should hide anything past expiry automatically.
 
 ## C. Verified facts (existing site)
 
@@ -46,8 +46,20 @@ The data model carries `issuer`, `issuedAt`, `expiresAt`, `scope`; the UI hides 
 
 ## F. Missing
 
-Capacities, lab description, customers, export volumes, awards, certificate details, product catalogue beyond 20 rows, privacy policy, photography, staff-name consent, employee count, social profile URLs.
+Capacities, lab description, customers, export volumes, awards, certificate details, product catalogue beyond 20 rows, a reviewed privacy policy (only a draft exists, see H1), photography, staff-name consent, employee count, social profile URLs.
 
 ## G. Images/documents
 
 Replace: all placeholder category images, "Demo Site" logo alt, Joomla placeholders. Keep subject to client confirmation: logos, Hattali photo, five incense/bakhoor photos, 17 datasheets, MMCA SDS, certificate files. Stock imagery is never to be presented as Aquila facilities.
+
+## H. Sub-project 2: catalogue and RFQ
+
+| # | Item | Status | Action |
+|---|---|---|---|
+| 1 | Privacy notice (`/privacy`) | 🛑 Draft, not legal advice | Legal review before launch. It describes only what the site does today (RFQ fields, IP-derived hash for rate limiting, a salted one-way hash of the (normalised) email address used only as the key that caps acknowledgement emails per address, user agent, local-storage enquiry list, admin session cookie, hosting and email providers as processors). Retention is stated as "to be confirmed by Aquila"; no named law or certification is claimed. Careers/contact sections must be revised when those forms ship. Requests go to `info@` until the client names a privacy contact |
+| 2 | RFQ internal notification recipients | ❓ Client input needed | `SiteSetting` keys `notification.recipients.<FRAGRANCES\|AROMA_CHEMICALS\|FLAVOURS\|GENERAL>` (a JSON array of addresses) are empty by default, so internal emails are skipped, a `notification.skipped` activity is recorded and the admin enquiry list shows a warning. Ask which mailboxes receive each enquiry type (see A4 for the current mailbox mapping). There is no settings screen yet: the values are set directly in the database |
+| 3 | Legacy products (`data/legacy-products.json`) | 🛑 Drafts only | All 20 rows import as `DRAFT`, `verified=false`, with a `sourceNote` on each row (`npm run import:products -- data/legacy-products.json`). The four rows with CAS conflicts (A5–A8: Methyl Chloroacetate (MMCA), the duplicate 1123-85-9 pair Iso Bornyl Propionate and Hydratropic Alcohol, Citronellyl Tiglate) are entered with CAS left empty and a note, never guessed. Datasheets and the MMCA SDS are not imported (no `ProductDocument` rows yet). Nothing is public until a `SUPER_ADMIN` marks a product verified (after the client confirms it against its datasheet/SDS, spec §7) and an admin publishes it; the database refuses to publish an unverified product |
+| 4 | RFQ confirmation copy | 📄 Neutral wording | Says only that a member of the team will review and respond, and that "you will normally receive an acknowledgement by email" if an email address was provided ("normally" because the per-address cap in H5 can skip it). It shows the reference and next steps only, no summary of the request. No response time is promised; add one only if the client confirms it |
+| 5 | RFQ acknowledgement email content | 📄 Deliberately minimised | The acknowledgement goes to whatever address was typed, so it carries only a constant greeting ("Dear customer,"), the reference, the number of product lines and a generic next-steps sentence: no visitor name, item names, line notes, company or requirements (the internal notification to sales keeps the full details). At most 3 per address per day (README "Email abuse limits"). Any wording change must keep it free of visitor-typed text |
+| 6 | Certificates and EcoVadis | 🛑 Still hidden | Sub-project 2 adds no certificate, badge or EcoVadis content anywhere (catalogue, product pages, RFQ, emails). Section B still applies |
+| 7 | Product data shown publicly | 📄 Only what is stored | Product pages show only the fields a product actually has (name, code, CAS, category, description, specifications, applications, documents). The JSON-LD carries no prices or offers. `sourceNote` is internal and never rendered |

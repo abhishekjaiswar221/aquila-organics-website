@@ -70,7 +70,7 @@ export const segmentBlocks: Block<SegmentData>[] = [
       title: "Aroma Chemicals",
       summary:
         "Bulk-manufactured and specialty ingredients made to order, supported by a range of synthetic chemistries.",
-      href: "/#aroma-chemicals",
+      href: "/aroma-chemicals",
     },
   },
   {

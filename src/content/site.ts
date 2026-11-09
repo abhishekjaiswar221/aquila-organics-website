@@ -36,7 +36,8 @@ export const addresses: { registeredOffice: Address; headOffice: Address } = {
 };
 
 /**
- * Sub-project 1 ships only the homepage. Every other route is listed with
+ * Only routes that exist are available: the homepage and the aroma chemicals
+ * catalogue (sub-project 2). Every other route is listed with
  * available: false and is omitted from rendered navigation until its
  * sub-project delivers it.
  */
@@ -54,7 +55,7 @@ export const primaryNav: NavItem[] = [
       "Incense and Bakhoor",
     ].map((label) => ({ label, href: `/fragrances/${label.toLowerCase().replace(/ /g, "-")}`, available: false })),
   },
-  { label: "Aroma Chemicals", href: "/aroma-chemicals", available: false },
+  { label: "Aroma Chemicals", href: "/aroma-chemicals", available: true },
   {
     label: "Flavours",
     href: "/flavours",
@@ -71,7 +72,13 @@ export const primaryNav: NavItem[] = [
   { label: "Contact", href: "/contact", available: false },
 ];
 
-/** The three business segments. Anchors point at homepage sections until segment pages ship. */
+/** Secondary links in the footer (sub-project 2: the draft privacy notice and the RFQ form). */
+export const footerNav: NavItem[] = [
+  { label: "Request a quotation", href: "/rfq", available: true },
+  { label: "Privacy", href: "/privacy", available: true },
+];
+
+/** The three business segments. Each links to its page once shipped (Aroma Chemicals), otherwise to its homepage section. */
 export const segments = [
   {
     id: "fragrances",
@@ -82,7 +89,7 @@ export const segments = [
   {
     id: "aroma-chemicals",
     label: "Aroma Chemicals",
-    anchor: "/#aroma-chemicals",
+    anchor: "/aroma-chemicals",
     items: ["Custom manufacturing", "Process chemistry"],
   },
   {

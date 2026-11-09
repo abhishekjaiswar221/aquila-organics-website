@@ -61,7 +61,7 @@ All primary keys are UUIDs; every table has `createdAt` and `updatedAt`.
 - **Attachments**: PDF, PNG, JPG, DOCX, XLSX, CSV only; max 5 files, 10 MB each; extension and sniffed MIME must agree; filenames are sanitised and stored under random keys.
 - **Abuse protection**: hidden honeypot field; per-IP-hash rate limit (default 5 submissions per hour) via `RateLimitHit`; a submission whose honeypot is filled returns success without storing.
 - **Server action** creates `Enquiry`, items, attachments and the first `EnquiryActivity` in one transaction, then calls the email interface for (a) acknowledgement to the visitor and (b) internal notification to recipients from `SiteSetting`. Failure to send mail never fails the submission; it is logged and recorded in activity.
-- **Confirmation page** shows the reference number and a summary. No admin-only data is exposed.
+- **Confirmation page** shows the reference number and the next steps only. No business data is placed in the URL or in browser storage to build it, and no admin-only data is exposed; the emailed acknowledgement confirms the reference and the number of product lines (it deliberately repeats no free text the visitor typed), and the full request details go to the sales team in the internal notification.
 - **Consent**: required checkbox linking to `/privacy` (a short draft page, flagged for legal review in `docs/content-verification.md`).
 
 ## 6. Minimal admin
@@ -74,7 +74,7 @@ All primary keys are UUIDs; every table has `createdAt` and `updatedAt`.
 ## 7. Import, storage and email
 
 - `npm run import:products -- <file.csv|json>`: validates each row with the product Zod schema, upserts by slug, and always creates rows as `DRAFT` with `verified=false`. Rows failing validation are reported and skipped. A checked-in `data/legacy-products.json` holds the 20 legacy rows with a `sourceNote`; the known CAS conflicts (methyl chloroacetate, the duplicate 1123-85-9 pair, Citronellyl Tiglate) are entered with CAS left empty and a note, not guessed.
-- `StorageProvider` interface: `put(key, bytes, meta)`, `getReadStream(key)`, `delete(key)`. Local implementation writes under `./storage` (git-ignored, outside `public/`). Selected by `STORAGE_DRIVER`. R2 implementation is a later sub-project.
+- `StorageProvider` interface: `put(key, bytes, meta)`, `getStream(key)`, `delete(key)`. Local implementation writes under `./storage` (git-ignored, outside `public/`). Selected by `STORAGE_DRIVER`. R2 implementation is a later sub-project.
 - `EmailProvider` interface: `send({to, subject, html, text})`. Development implementation writes to `./storage/outbox` and logs. Templates are React/HTML functions with plain-text alternates. Resend implementation is a later sub-project.
 - `.env.example` gains placeholders only: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `STORAGE_DRIVER`, `EMAIL_DRIVER`, `RATE_LIMIT_SALT`. None are `NEXT_PUBLIC_`.
 - `docker-compose.yml` for Postgres; `README` documents setup, migrate, seed and import.
@@ -95,3 +95,4 @@ All primary keys are UUIDs; every table has `createdAt` and `updatedAt`.
 - Rate limiting by IP hash depends on a trustworthy forwarded-IP header; deployment documentation must state the proxy configuration.
 - Better Auth schema and API details are version-dependent; the plan must read the installed version's docs first, as must Next.js (see `AGENTS.md`).
 - The privacy page is a draft and is not legal advice.
+- By design the confirmation page shows no on-screen summary of what was submitted (reference and next steps only), so no business data has to travel in the URL or sit in browser storage.
