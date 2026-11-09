@@ -1,32 +1,78 @@
+import { getSessionCookie } from "better-auth/cookies";
 import { NextResponse, type NextRequest } from "next/server";
-import { isPublishedSlug } from "@/features/products/queries";
+import { adminRedirectTarget, isAdminPath, isPrefetchRequest } from "@/features/admin/proxy-redirect";
+
+const PRODUCT_PREFIX = "/aroma-chemicals/";
 
 /*
- * Real 404 status for unknown, draft and archived product slugs.
+ * Two independent branches, chosen by path; neither ever runs the other's code.
  *
- * With Cache Components and Partial Prefetching, /aroma-chemicals/[slug] is
- * served as an App Shell (layouts) that streams before the page renders, so a
- * notFound() in the page could only produce a 200 with noindex. Checking the
- * slug here, before rendering, lets an unpublished slug be rewritten to an
- * unmatched path, which Next.js answers with the root not-found page and a 404.
- * The page keeps its own notFound() as a second line of defence.
+ * Admin (/admin/:path*): a real 307 to /admin/login?next=... for a signed-out
+ * page request, instead of a 200 shell that only redirects in the browser.
+ * "Signed out" means NO Better Auth session cookie at all (getSessionCookie
+ * also reads the __Secure- prefixed name used in production). There is no
+ * database call and no session validation here: presence only. A forged or
+ * expired cookie value passes this check and is rejected by the server-side
+ * requireRole()/getAdminAccess() checks in every admin page, action and route,
+ * which remain the sole authority. Prefetches and non-GET/HEAD requests (Server
+ * Action POSTs) are never redirected; the action's own check answers them.
+ *
+ * Product (/aroma-chemicals/:slug): real 404 status for unknown, draft and
+ * archived slugs. With Cache Components and Partial Prefetching, the product
+ * page is served as an App Shell (layouts) that streams before the page
+ * renders, so a notFound() in the page could only produce a 200 with noindex.
+ * Checking the slug here, before rendering, lets an unpublished slug be
+ * rewritten to an unmatched path, which Next.js answers with the root
+ * not-found page and a 404. The page keeps its own notFound() as a second line
+ * of defence. The query module (Prisma) is loaded only in this branch.
  */
 export async function proxy(request: NextRequest) {
+  const { pathname, search } = request.nextUrl;
+
+  if (isAdminPath(pathname)) {
+    const target = adminRedirectTarget({
+      pathname,
+      search,
+      method: request.method,
+      hasSessionCookie: getSessionCookie(request) !== null,
+      isPrefetch: isPrefetchRequest(request.headers),
+    });
+    // The target is always a relative /admin/login path: resolved against
+    // the request URL it can only stay on this origin.
+    return target ? NextResponse.redirect(new URL(target, request.url), 307) : NextResponse.next();
+  }
+
+  if (!pathname.startsWith(PRODUCT_PREFIX)) return NextResponse.next();
+
   // Router prefetches only fetch the generic App Shell: no lookup needed.
   if (request.headers.has("next-router-prefetch")) return NextResponse.next();
 
-  const raw = request.nextUrl.pathname.split("/")[2] ?? "";
+  const raw = pathname.split("/")[2] ?? "";
   let slug: string;
   try {
     slug = decodeURIComponent(raw);
   } catch {
     slug = "";
   }
+  const { isPublishedSlug } = await import("@/features/products/queries");
   if (slug && (await isPublishedSlug(slug))) return NextResponse.next();
   return NextResponse.rewrite(new URL("/_catalogue/not-found", request.url));
 }
 
 export const config = {
-  // One segment below the catalogue: product pages only (documents/[id] is two segments).
-  matcher: "/aroma-chemicals/:slug",
+  matcher: [
+    // One segment below the catalogue: product pages only (documents/[id] is two segments).
+    "/aroma-chemicals/:slug",
+    {
+      // Every admin page; /admin/login is let through in code. /api/admin/* is
+      // not matched: its route handler answers 401/403 itself. Router
+      // prefetches skip the proxy entirely (Next.js strips these headers from
+      // request.headers inside the proxy, so they are excluded here instead).
+      source: "/admin/:path*",
+      missing: [
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "next-router-segment-prefetch" },
+      ],
+    },
+  ],
 };

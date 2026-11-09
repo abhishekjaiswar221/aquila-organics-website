@@ -82,14 +82,104 @@ const statusSelect = (page: Page) => page.getByRole("region", { name: "Change st
 
 const productRow = (page: Page, name: string) => page.getByTestId("product-row").filter({ hasText: name });
 
+// Where the proxy sends a signed-out request for `path`.
+const loginFor = (next: string) => `/admin/login?next=${encodeURIComponent(next)}`;
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const atLogin = (next: string) => new RegExp(`${escapeRe(loginFor(next))}$`);
+
 test.describe("admin: access control", () => {
-  for (const path of ["/admin", "/admin/products", "/admin/enquiries", "/admin/enquiries/00000000-0000-4000-8000-000000000001"]) {
+  const SIGNED_OUT: [path: string, next: string][] = [
+    ["/admin", "/admin/products"],
+    ["/admin/products", "/admin/products"],
+    ["/admin/enquiries", "/admin/enquiries"],
+    ["/admin/enquiries/00000000-0000-4000-8000-000000000001", "/admin/enquiries/00000000-0000-4000-8000-000000000001"],
+  ];
+  for (const [path, next] of SIGNED_OUT) {
     test(`signed out, ${path} redirects to the login page`, async ({ page }) => {
       await page.goto(path);
-      await expect(page).toHaveURL(/\/admin\/login$/);
+      await expect(page).toHaveURL(atLogin(next));
       await expect(page.getByRole("heading", { level: 1, name: "Sign in" })).toBeVisible();
     });
   }
+
+  test("signed out, admin pages answer a real 307 to the login page; the login page answers 200", async ({ request }) => {
+    for (const [path, next] of [
+      ...SIGNED_OUT,
+      ["/admin/enquiries?status=NEW", "/admin/enquiries?status=NEW"],
+    ] as const) {
+      const res = await request.get(path, { maxRedirects: 0 });
+      expect(res.status(), path).toBe(307);
+      expect(res.headers()["location"], path).toBe(loginFor(next));
+      expect(await res.text(), path).not.toContain(DRAFT.name);
+    }
+    const login = await request.get("/admin/login", { maxRedirects: 0 });
+    expect(login.status()).toBe(200);
+    const withNext = await request.get(loginFor("/admin/enquiries"), { maxRedirects: 0 });
+    expect(withNext.status()).toBe(200);
+  });
+
+  test("the proxy never redirects off-site, whatever the path", async ({ request, baseURL }) => {
+    const origin = new URL(baseURL ?? "").origin;
+    // (An encoded dot-dot path is resolved by the client's URL parser before sending, so it never reaches the admin.)
+    for (const path of ["/admin//evil.example", "/admin/%5c%5cevil.example", "/admin/x?next=https://evil.example"]) {
+      const res = await request.get(path, { maxRedirects: 0 });
+      // 307 from the proxy (Next.js may first answer 308 to fold repeated slashes).
+      expect([307, 308], path).toContain(res.status());
+      const location = res.headers()["location"] ?? "";
+      const target = new URL(location, origin);
+      expect(target.origin, `${path} -> ${location}`).toBe(origin);
+      expect(target.pathname.startsWith("/admin"), `${path} -> ${location}`).toBe(true);
+      if (res.status() === 307) {
+        expect(location.startsWith("/admin/login?next=%2Fadmin"), `${path} -> ${location}`).toBe(true);
+        expect(new URL(target.searchParams.get("next") ?? "", origin).origin).toBe(origin);
+      }
+    }
+  });
+
+  test("a Server Action POST without a session is not redirected by the proxy", async ({ request }) => {
+    const res = await request.post("/admin/products", {
+      maxRedirects: 0,
+      headers: { "next-action": "0000000000000000000000000000000000000000" },
+      data: "[]",
+    });
+    expect(res.status()).not.toBe(307);
+  });
+
+  test("public pages and product status codes are unchanged by the admin branch", async ({ request }) => {
+    expect((await request.get(`/aroma-chemicals/${ETHANOL.slug}`, { maxRedirects: 0 })).status()).toBe(200);
+    expect((await request.get(`/aroma-chemicals/${DRAFT.slug}`, { maxRedirects: 0 })).status()).toBe(404);
+    expect((await request.get("/aroma-chemicals/test-no-such-product", { maxRedirects: 0 })).status()).toBe(404);
+    for (const path of ["/", "/aroma-chemicals", "/rfq", "/privacy"]) {
+      expect((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(200);
+    }
+  });
+
+  test("a forged session cookie passes the proxy but the server still refuses it", async ({ page, request, baseURL }) => {
+    const forged = "better-auth.session_token=TEST-forged-token.TEST-forged-signature";
+    // Past the proxy: the request reaches the server (no 307 from the proxy).
+    const res = await request.get("/admin/enquiries", { maxRedirects: 0, headers: { cookie: forged } });
+    expect(res.status()).not.toBe(307);
+    const body = await res.text();
+    expect(body).not.toContain(DRAFT.name);
+    expect(body).not.toContain("enquiry-row");
+
+    // In a browser the server-side check sends it to the login page.
+    await page.context().addCookies([
+      { name: "better-auth.session_token", value: "TEST-forged-token.TEST-forged-signature", url: baseURL ?? "" },
+    ]);
+    await page.goto("/admin/enquiries");
+    await expect(page).toHaveURL(/\/admin\/login(\?|$)/);
+    await expect(page.getByRole("heading", { level: 1, name: "Sign in" })).toBeVisible();
+    await expect(page.locator("main")).not.toContainText(DRAFT.name);
+  });
+
+  test("a deep link survives signing in: login with next lands on the requested page", async ({ page }) => {
+    await page.goto("/admin/enquiries");
+    await expect(page).toHaveURL(atLogin("/admin/enquiries"));
+    await signInWithForm(page, salesManager);
+    await page.waitForURL(/\/admin\/enquiries$/);
+    await expect(page.getByRole("heading", { level: 1, name: "Enquiries" })).toBeVisible();
+  });
 
   test("signed out, the attachment route answers 401 with nothing in the body", async ({ request }) => {
     const res = await request.get("/api/admin/attachments/00000000-0000-4000-8000-000000000001");
@@ -139,7 +229,7 @@ test.describe("admin: access control", () => {
     await page.waitForURL(/\/admin\/login$/);
     expect(await hasSessionCookie(page)).toBe(false);
     await page.goto("/admin/products");
-    await expect(page).toHaveURL(/\/admin\/login$/);
+    await expect(page).toHaveURL(atLogin("/admin/products"));
   });
 
   test("an already signed-in admin visiting the login page goes to products", async ({ page }) => {
