@@ -147,10 +147,11 @@ test.describe("admin: access control", () => {
   });
 
   test("a router prefetch of an admin page skips the proxy; the server-side gate still applies", async ({ request }) => {
-    for (const headers of [
+    const prefetches: Record<string, string>[] = [
       { rsc: "1", "next-router-prefetch": "1" },
       { rsc: "1", "next-router-prefetch": "1", "next-router-segment-prefetch": "/_tree" },
-    ]) {
+    ];
+    for (const headers of prefetches) {
       const res = await request.get("/admin/enquiries", { maxRedirects: 0, headers });
       // The proxy's answer would be a 307 to /admin/login?next=...; it never comes.
       expect(res.headers()["location"] ?? "", JSON.stringify(headers)).not.toContain("next=");
