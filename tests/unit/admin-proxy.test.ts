@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { adminRedirectTarget, isPrefetchRequest } from "@/features/admin/proxy-redirect";
 
@@ -120,5 +122,27 @@ describe("isPrefetchRequest", () => {
     expect(isPrefetchRequest(new Headers({ purpose: "prefetch" }))).toBe(true);
     expect(isPrefetchRequest(new Headers({ "sec-purpose": "prefetch;prerender" }))).toBe(true);
     expect(isPrefetchRequest(new Headers({ accept: "text/html" }))).toBe(false);
+  });
+});
+
+describe("proxy matcher", () => {
+  // Next.js strips next-router-prefetch (and the other Flight headers) from
+  // request.headers inside the proxy, so router prefetches can only be skipped
+  // in the matcher. Both branches skip them the same way.
+  it("skips router prefetches for product and admin paths alike, in the matcher", async () => {
+    const { config } = await import("@/proxy");
+    const entries = config.matcher.map((m) => (typeof m === "string" ? { source: m, missing: [] } : m));
+    expect(entries.map((e) => e.source)).toEqual(["/aroma-chemicals/:slug", "/admin/:path*"]);
+    for (const entry of entries) {
+      expect(entry.missing, entry.source).toEqual([
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "next-router-segment-prefetch" },
+      ]);
+    }
+  });
+
+  it("has no in-code next-router-prefetch check (it could never be true)", () => {
+    const source = readFileSync(path.resolve(__dirname, "../../src/proxy.ts"), "utf8");
+    expect(source).not.toMatch(/headers\.has\(["']next-router-prefetch["']\)/);
   });
 });

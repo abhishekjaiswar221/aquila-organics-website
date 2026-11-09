@@ -44,9 +44,6 @@ export async function proxy(request: NextRequest) {
 
   if (!pathname.startsWith(PRODUCT_PREFIX)) return NextResponse.next();
 
-  // Router prefetches only fetch the generic App Shell: no lookup needed.
-  if (request.headers.has("next-router-prefetch")) return NextResponse.next();
-
   const raw = pathname.split("/")[2] ?? "";
   let slug: string;
   try {
@@ -59,15 +56,26 @@ export async function proxy(request: NextRequest) {
   return NextResponse.rewrite(new URL("/_catalogue/not-found", request.url));
 }
 
+// Router prefetches skip the proxy entirely, on both branches. Next.js strips
+// these headers from request.headers inside the proxy (proxy.md, "RSC requests
+// and rewrites"), so they can only be excluded here, in the matcher. The
+// matcher must be literal constants (it is analysed at build time), hence the
+// repetition.
 export const config = {
   matcher: [
-    // One segment below the catalogue: product pages only (documents/[id] is two segments).
-    "/aroma-chemicals/:slug",
+    {
+      // One segment below the catalogue: product pages only (documents/[id] is
+      // two segments). A prefetch only fetches the generic App Shell, so it
+      // needs no lookup; the real navigation still gets the 404 check.
+      source: "/aroma-chemicals/:slug",
+      missing: [
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "next-router-segment-prefetch" },
+      ],
+    },
     {
       // Every admin page; /admin/login is let through in code. /api/admin/* is
-      // not matched: its route handler answers 401/403 itself. Router
-      // prefetches skip the proxy entirely (Next.js strips these headers from
-      // request.headers inside the proxy, so they are excluded here instead).
+      // not matched: its route handler answers 401/403 itself.
       source: "/admin/:path*",
       missing: [
         { type: "header", key: "next-router-prefetch" },

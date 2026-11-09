@@ -146,6 +146,28 @@ test.describe("admin: access control", () => {
     expect(res.status()).not.toBe(307);
   });
 
+  test("a router prefetch of an admin page skips the proxy; the server-side gate still applies", async ({ request }) => {
+    for (const headers of [
+      { rsc: "1", "next-router-prefetch": "1" },
+      { rsc: "1", "next-router-prefetch": "1", "next-router-segment-prefetch": "/_tree" },
+    ]) {
+      const res = await request.get("/admin/enquiries", { maxRedirects: 0, headers });
+      // The proxy's answer would be a 307 to /admin/login?next=...; it never comes.
+      expect(res.headers()["location"] ?? "", JSON.stringify(headers)).not.toContain("next=");
+      const body = await res.text();
+      expect(body).not.toContain(DRAFT.name);
+      expect(body).not.toContain("enquiry-row");
+    }
+  });
+
+  test("a client-side navigation request (RSC, not a prefetch) for an unpublished product is still a 404", async ({ request }) => {
+    for (const slug of [DRAFT.slug, ARCHIVED.slug]) {
+      const res = await request.get(`/aroma-chemicals/${slug}`, { maxRedirects: 0, headers: { rsc: "1" } });
+      expect(res.status(), slug).toBe(404);
+      expect(await res.text()).not.toContain(DRAFT.name);
+    }
+  });
+
   test("public pages and product status codes are unchanged by the admin branch", async ({ request }) => {
     expect((await request.get(`/aroma-chemicals/${ETHANOL.slug}`, { maxRedirects: 0 })).status()).toBe(200);
     expect((await request.get(`/aroma-chemicals/${DRAFT.slug}`, { maxRedirects: 0 })).status()).toBe(404);
