@@ -86,7 +86,8 @@ export default async function ConfirmationPage({ searchParams }: PageProps<"/rfq
                   02
                 </span>
                 <span>
-                  If an email address was provided, you should receive an acknowledgement with your reference.
+                  If an email address was provided, you will normally receive an acknowledgement by email with your
+                  reference.
                 </span>
               </li>
               <li className="grid grid-cols-[2.5rem_minmax(0,1fr)]">
