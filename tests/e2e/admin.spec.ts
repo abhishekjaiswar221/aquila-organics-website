@@ -10,6 +10,7 @@ import {
   signInViaApi,
   type TestEnquiry,
 } from "./support/admin";
+import { E2E_BASE_URL } from "./support/e2e-env";
 import { ADMIN_USERS, ARCHIVED, DRAFT, ETHANOL } from "./support/fixtures";
 import { testIp, withDb } from "./support/rfq-db";
 
@@ -519,6 +520,22 @@ test.describe("admin: enquiries", () => {
     expect(csv.headers()["content-type"]).toBe("text/csv");
     expect(csv.headers()["content-disposition"]).toMatch(/^attachment; /);
     expect((await page.request.get("/api/admin/attachments/not-a-uuid")).status()).toBe(404);
+  });
+
+  test("HEAD on an attachment: 405 when signed in, 401 signed out, and never logged as a download", async ({ page, playwright }) => {
+    const url = `/api/admin/attachments/${enquiry.attachment.id}`;
+    const res = await page.request.head(url);
+    expect(res.status()).toBe(405);
+    expect(res.headers()["allow"]).toBe("GET");
+    const anonymous = await playwright.request.newContext({ baseURL: E2E_BASE_URL });
+    try {
+      expect((await anonymous.head(url)).status()).toBe(401);
+    } finally {
+      await anonymous.dispose();
+    }
+    // A cross-site browser fetch is refused as well.
+    expect((await page.request.get(url, { headers: { "sec-fetch-site": "cross-site" } })).status()).toBe(403);
+    expect((await activitiesOf(enquiry.id)).filter((a) => a.action === "attachment.downloaded")).toEqual([]);
   });
 
   test("an unknown enquiry id shows not found inside the admin", async ({ page }) => {

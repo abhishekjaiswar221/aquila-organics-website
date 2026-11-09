@@ -27,7 +27,7 @@ const { isPublishCheckViolation, PUBLISH_REQUIREMENTS_ERROR, UNVERIFIED_ERROR } 
 const { setEnquiryStatus } = await import("@/features/enquiries/admin-actions");
 const { getEnquiry, listEnquiries, missingRecipientTypes } = await import("@/features/enquiries/queries");
 const { searchProducts } = await import("@/features/products/queries");
-const { GET: downloadAttachment } = await import("@/app/api/admin/attachments/[id]/route");
+const { GET: downloadAttachment, HEAD: headAttachment } = await import("@/app/api/admin/attachments/[id]/route");
 
 type Role = "SUPER_ADMIN" | "ADMINISTRATOR" | "SALES_MANAGER" | "SALES_EXECUTIVE" | "CONTENT_EDITOR" | "HR_MANAGER";
 const ROLES: Role[] = ["SUPER_ADMIN", "ADMINISTRATOR", "SALES_MANAGER", "SALES_EXECUTIVE", "CONTENT_EDITOR", "HR_MANAGER"];
@@ -508,4 +508,60 @@ describe("attachment download route", () => {
       expect(logged[0]).toMatchObject({ actorId: userIds.get(role), detail: { attachmentId: attachment.id } });
     },
   );
+
+  // Next.js would otherwise answer HEAD by running GET (writing a phantom
+  // download record). HEAD gets the same auth answers first, then 405.
+  function head(id: string, role: Role | null) {
+    const headers = new Headers(role ? { cookie: cookies.get(role) ?? "" } : {});
+    return headAttachment(
+      new Request(`http://localhost:3000/api/admin/attachments/${encodeURIComponent(id)}`, { method: "HEAD", headers }),
+    );
+  }
+
+  it("HEAD as an allowed role answers 405 Allow: GET and records nothing", async () => {
+    const { attachment } = await makeAttachment();
+    const before = await db.enquiryActivity.count();
+    for (const role of ["SALES_MANAGER", "SUPER_ADMIN"] as const) {
+      const res = await head(attachment.id, role);
+      expect(res.status, role).toBe(405);
+      expect(res.headers.get("allow")).toBe("GET");
+      expect(await res.text()).toBe("");
+      await expectNoKey(res);
+    }
+    expect(await db.enquiryActivity.count()).toBe(before);
+    expect(await db.enquiryActivity.count({ where: { action: "attachment.downloaded" } })).toBe(0);
+  });
+
+  it("HEAD keeps the auth answers: 401 signed out (and forged), 403 for a denied role", async () => {
+    const { attachment } = await makeAttachment();
+    expect((await head(attachment.id, null)).status).toBe(401);
+    const forged = await headAttachment(
+      new Request("http://localhost:3000/x", { method: "HEAD", headers: { cookie: "better-auth.session_token=forged.value" } }),
+    );
+    expect(forged.status).toBe(401);
+    for (const role of DENIED) expect((await head(attachment.id, role)).status, role).toBe(403);
+  });
+
+  it("GET refuses a cross-site request (Sec-Fetch-Site) after the auth check; same-origin and header-less work", async () => {
+    const { attachment } = await makeAttachment();
+    const withSite = (site: string | null, role: Role | null) => {
+      const headers = new Headers(role ? { cookie: cookies.get(role) ?? "" } : {});
+      if (site) headers.set("sec-fetch-site", site);
+      return downloadAttachment(new Request(`http://localhost:3000/api/admin/attachments/${attachment.id}`, { headers }), {
+        params: Promise.resolve({ id: attachment.id }),
+      });
+    };
+    expect((await withSite("cross-site", null)).status).toBe(401);
+    const cross = await withSite("cross-site", "SALES_MANAGER");
+    expect(cross.status).toBe(403);
+    expect(await cross.text()).toBe("");
+    expect(await db.enquiryActivity.count({ where: { action: "attachment.downloaded" } })).toBe(0);
+
+    for (const site of ["same-origin", "none", null]) {
+      const res = await withSite(site, "SALES_MANAGER");
+      expect(res.status, String(site)).toBe(200);
+      await res.arrayBuffer();
+    }
+    expect(await db.enquiryActivity.count({ where: { action: "attachment.downloaded" } })).toBe(3);
+  });
 });

@@ -28,10 +28,35 @@ function plain(status: 404 | 503, text: string): Response {
   return new Response(text, { status, headers: { ...ERROR_HEADERS, "Content-Type": "text/plain; charset=utf-8" } });
 }
 
-export async function GET(request: Request, ctx: RouteContext<"/api/admin/attachments/[id]">) {
+/** The requireRole() decision: a 401/403 response, or the permitted user. */
+async function authorise(request: Request): Promise<Response | { userId: string }> {
   const access = await getAdminAccess(request.headers);
   if (access.kind === "redirect") return empty(401);
   if (access.kind === "forbidden") return empty(403);
+  return { userId: access.userId };
+}
+
+/*
+ * Without this export Next.js answers HEAD by running GET, which would open
+ * the file and record a download nobody made. HEAD gets exactly the same auth
+ * answers as GET (401/403 first, so a signed-out probe learns nothing), then
+ * 405 for a permitted user. No database lookup, no stream, no activity row.
+ */
+export async function HEAD(request: Request): Promise<Response> {
+  const auth = await authorise(request);
+  if (auth instanceof Response) return auth;
+  return new Response(null, { status: 405, headers: { ...ERROR_HEADERS, Allow: "GET" } });
+}
+
+export async function GET(request: Request, ctx: RouteContext<"/api/admin/attachments/[id]">) {
+  const auth = await authorise(request);
+  if (auth instanceof Response) return auth;
+  const access = auth;
+
+  // Browsers send Sec-Fetch-Site; a download triggered from another site
+  // (a link or embed on a third-party page) is refused. Requests without the
+  // header (non-browser clients) and same-origin/user-typed ones still work.
+  if (request.headers.get("sec-fetch-site") === "cross-site") return empty(403);
 
   const { id } = await ctx.params;
   const file = await getAttachmentFile(id);
