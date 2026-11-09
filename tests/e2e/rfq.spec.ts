@@ -122,6 +122,7 @@ test.describe("rfq: building and sending an enquiry", () => {
     await expect(line(page, 3)).toHaveCount(0);
 
     await line(page, 1).getByLabel("Quantity").fill("25");
+    await line(page, 1).getByLabel("Unit").selectOption("KG");
     await line(page, 1).getByLabel("Notes (optional)").fill("TEST 25 kg drums");
     await line(page, 2).getByLabel("Quantity").fill("200");
     await line(page, 2).getByLabel("Unit").selectOption("L");
@@ -158,6 +159,7 @@ test.describe("rfq: building and sending an enquiry", () => {
     await expect(page.getByRole("link", { name: /browse the catalogue/i })).toHaveAttribute("href", "/aroma-chemicals");
     await line(page, 1).getByLabel("Product name").fill("TEST Custom amber accord");
     await line(page, 1).getByLabel("Quantity").fill("5");
+    await line(page, 1).getByLabel("Unit").selectOption("KG");
     await fillContact(page);
     await submitButton(page).click();
     await expectConfirmation(page);
@@ -181,6 +183,7 @@ test.describe("rfq: building and sending an enquiry", () => {
     await page.goto("/rfq");
     await line(page, 1).getByLabel("Product name").fill("TEST Double click blend");
     await line(page, 1).getByLabel("Quantity").fill("1");
+    await line(page, 1).getByLabel("Unit").selectOption("KG");
     await fillContact(page);
     await submitButton(page).dblclick();
     await expectConfirmation(page);
@@ -191,6 +194,7 @@ test.describe("rfq: building and sending an enquiry", () => {
     await page.goto("/rfq");
     await line(page, 1).getByLabel("Product name").fill("TEST Retry blend");
     await line(page, 1).getByLabel("Quantity").fill("2");
+    await line(page, 1).getByLabel("Unit").selectOption("KG");
     await fillContact(page);
 
     // First post reaches the server, but the browser never sees the response.
@@ -237,6 +241,7 @@ test.describe("rfq: validation and errors", () => {
     await page.goto("/rfq");
     await line(page, 1).getByLabel("Product name").fill("TEST Validation blend");
     await line(page, 1).getByLabel("Quantity").fill("1");
+    await line(page, 1).getByLabel("Unit").selectOption("KG");
     await fillContact(page, { email: "not-an-email", consent: false });
     await submitButton(page).click();
 
@@ -256,6 +261,7 @@ test.describe("rfq: validation and errors", () => {
   test("a missing quantity is reported on its line", async ({ page }) => {
     await page.goto("/rfq");
     await line(page, 1).getByLabel("Product name").fill("TEST Quantity blend");
+    await line(page, 1).getByLabel("Unit").selectOption("KG");
     await fillContact(page);
     await submitButton(page).click();
     const qty = line(page, 1).getByLabel("Quantity");
@@ -269,6 +275,7 @@ test.describe("rfq: validation and errors", () => {
     await page.goto("/rfq");
     await line(page, 1).getByLabel("Product name").fill("TEST Limited blend");
     await line(page, 1).getByLabel("Quantity").fill("1");
+    await line(page, 1).getByLabel("Unit").selectOption("KG");
     await fillContact(page);
     await submitButton(page).click();
     // Scoped to main: Next.js's route announcer is also role=alert.
@@ -302,6 +309,146 @@ test.describe("rfq: validation and errors", () => {
   });
 });
 
+test.describe("rfq: unit is an explicit choice", () => {
+  test("an unselected unit shows an inline accessible error on its line, is focused, and sends nothing", async ({ page }) => {
+    await page.goto("/rfq");
+    const unit = line(page, 1).getByLabel("Unit");
+    await expect(unit).toHaveValue("");
+    await expect(unit.locator("option:checked")).toHaveText("Select unit");
+    await line(page, 1).getByLabel("Product name").fill("TEST Unitless blend");
+    await line(page, 1).getByLabel("Quantity").fill("5");
+    await fillContact(page);
+    await submitButton(page).click();
+    await expect(unit).toHaveAttribute("aria-invalid", "true");
+    await expect(unit).toBeFocused();
+    await expect(unit).toHaveAccessibleDescription(/Choose a unit/);
+    await expect(page).toHaveURL(/\/rfq$/);
+    expect(await enquiriesFor(email)).toHaveLength(0);
+  });
+});
+
+/** Second, different RFQ from the same (reset) form instance. */
+async function sendSecondRfq(page: Page): Promise<string> {
+  await line(page, 1).getByLabel("Product name").fill("TEST Second blend");
+  await line(page, 1).getByLabel("Quantity").fill("7");
+  await line(page, 1).getByLabel("Unit").selectOption("L");
+  await fillContact(page);
+  await page.getByLabel("Full name").fill("TEST John Second");
+  await submitButton(page).click();
+  return expectConfirmation(page);
+}
+
+async function expectPristine(page: Page) {
+  await expect(page.getByLabel("Full name")).toHaveValue("");
+  await expect(page.getByLabel("Business email")).toHaveValue("");
+  await expect(page.getByLabel("Company name")).toHaveValue("");
+  await expect(page.getByRole("checkbox", { name: /I agree/ })).not.toBeChecked();
+  await expect(page.getByRole("list", { name: "Selected files" })).toHaveCount(0);
+  await expect(line(page, 1).getByLabel("Product name")).toHaveValue("");
+  await expect(line(page, 1).getByLabel("Unit")).toHaveValue("");
+  await expect(line(page, 2)).toHaveCount(0);
+  await expect(submitButton(page)).toBeEnabled();
+}
+
+async function sendFirstRfq(page: Page): Promise<string> {
+  await page.goto("/rfq");
+  await line(page, 1).getByLabel("Product name").fill("TEST First blend");
+  await line(page, 1).getByLabel("Quantity").fill("4");
+  await line(page, 1).getByLabel("Unit").selectOption("KG");
+  await fillContact(page);
+  await page.getByLabel("Attachments (optional)").setInputFiles(PDF);
+  await submitButton(page).click();
+  return expectConfirmation(page);
+}
+
+test.describe("rfq: after a successful send", () => {
+  test("Back shows a pristine form and a second RFQ gets a new reference", async ({ page }) => {
+    const first = await sendFirstRfq(page);
+    await page.goBack();
+    await page.waitForURL(/\/rfq$/);
+    await expectPristine(page);
+    const second = await sendSecondRfq(page);
+    expect(second).not.toBe(first);
+    const stored = await enquiriesFor(email);
+    expect(stored.map((e) => e.reference).sort()).toEqual([first, second].sort());
+    expect(stored[0].submissionId).not.toBe(stored[1].submissionId);
+  });
+
+  test("the header Enquiry link shows a pristine form and a second RFQ gets a new reference", async ({ page }, info) => {
+    const first = await sendFirstRfq(page);
+    await (await enquiryLink(page, info)).click();
+    await page.waitForURL(/\/rfq$/);
+    await expectPristine(page);
+    const second = await sendSecondRfq(page);
+    expect(second).not.toBe(first);
+    expect(await enquiriesFor(email)).toHaveLength(2);
+  });
+});
+
+test.describe("rfq: typed values survive leaving and returning", () => {
+  async function typeLines(page: Page) {
+    await page.goto(`/aroma-chemicals/${ETHANOL.slug}`);
+    await page.getByRole("button", { name: /add to enquiry/i }).click();
+    await page.goto("/rfq");
+    await expect(line(page, 1)).toContainText(ETHANOL.name);
+    await line(page, 1).getByLabel("Quantity").fill("25");
+    await line(page, 1).getByLabel("Unit").selectOption("MT");
+    await line(page, 1).getByLabel("Notes (optional)").fill("TEST drums");
+    await page.getByRole("button", { name: "Add another product" }).click();
+    await line(page, 2).getByLabel("Product name").fill("TEST Typed blend");
+    await line(page, 2).getByLabel("Quantity").fill("3");
+    await line(page, 2).getByLabel("Unit").selectOption("L");
+    await page.getByLabel("Full name").fill("TEST Jane Buyer");
+  }
+
+  async function expectTyped(page: Page) {
+    await expect(line(page, 1)).toContainText(ETHANOL.name);
+    await expect(line(page, 1).getByLabel("Quantity")).toHaveValue("25");
+    await expect(line(page, 1).getByLabel("Unit")).toHaveValue("MT");
+    await expect(line(page, 1).getByLabel("Notes (optional)")).toHaveValue("TEST drums");
+    await expect(line(page, 2).getByLabel("Product name")).toHaveValue("TEST Typed blend");
+    await expect(line(page, 2).getByLabel("Quantity")).toHaveValue("3");
+    await expect(line(page, 2).getByLabel("Unit")).toHaveValue("L");
+    await expect(line(page, 3)).toHaveCount(0);
+    await expect(page.getByLabel("Full name")).toHaveValue("TEST Jane Buyer");
+  }
+
+  async function browseCatalogue(page: Page) {
+    await page.getByRole("link", { name: /browse the catalogue/i }).click();
+    await page.waitForURL(/\/aroma-chemicals$/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(/aroma chemicals/i);
+  }
+
+  test("via Browse the catalogue then Back, and then the header Enquiry link", async ({ page }, info) => {
+    await typeLines(page);
+    await browseCatalogue(page);
+    await page.goBack();
+    await page.waitForURL(/\/rfq$/);
+    await expectTyped(page);
+
+    await browseCatalogue(page);
+    await (await enquiryLink(page, info)).click();
+    await page.waitForURL(/\/rfq$/);
+    await expectTyped(page);
+  });
+
+  test("a newly saved product is added as exactly one new line without touching the others", async ({ page }) => {
+    await typeLines(page);
+    await page.evaluate(
+      ([key, ids]) => window.localStorage.setItem(key, JSON.stringify(ids)),
+      [ENQUIRY_KEY, [ETHANOL.id, WATER.id]] as const,
+    );
+    await browseCatalogue(page);
+    await page.goBack();
+    await page.waitForURL(/\/rfq$/);
+    await expect(line(page, 3)).toContainText(WATER.name);
+    await expect(line(page, 3).getByLabel("Quantity")).toHaveValue("");
+    await expect(line(page, 4)).toHaveCount(0);
+    await expect(line(page, 1).getByLabel("Quantity")).toHaveValue("25");
+    await expect(line(page, 2).getByLabel("Product name")).toHaveValue("TEST Typed blend");
+  });
+});
+
 test.describe("rfq: honeypot", () => {
   test("is unreachable by keyboard and hidden from assistive technology", async ({ page }) => {
     await page.goto("/rfq");
@@ -323,6 +470,7 @@ test.describe("rfq: honeypot", () => {
     await page.goto("/rfq");
     await line(page, 1).getByLabel("Product name").fill("TEST Bot blend");
     await line(page, 1).getByLabel("Quantity").fill("1");
+    await line(page, 1).getByLabel("Unit").selectOption("KG");
     await fillContact(page);
     await page.locator('input[name="website"]').evaluate((el: HTMLInputElement) => {
       el.value = "http://spam.example";

@@ -4,6 +4,7 @@ import {
   catalogueLine,
   checkSelectedFiles,
   emptyLine,
+  mergeSavedLines,
   type RfqFormValues,
 } from "@/features/enquiries/form-state";
 import { rfqFromFormData, rfqSchema } from "@/features/enquiries/schema";
@@ -125,5 +126,60 @@ describe("checkSelectedFiles", () => {
     const out = checkSelectedFiles([a], [a]);
     expect(out.accepted).toEqual([]);
     expect(out.errors).toEqual([]);
+  });
+});
+
+describe("unit is an explicit choice", () => {
+  it("new lines start with no unit selected", () => {
+    expect(emptyLine().unit).toBe("");
+    expect(catalogueLine({ id: PRODUCT_ID, name: "TEST-Ethanol" }).unit).toBe("");
+  });
+
+  it("an unselected unit is rejected with 'Choose a unit' on that line (client schema = server schema)", () => {
+    const v = values();
+    v.items = [{ ...emptyLine(), name: "TEST Custom blend", quantity: "5" }];
+    const result = rfqSchema.safeParse(rfqFromFormData(buildRfqFormData(v, SUBMISSION_ID, [])));
+    expect(result.success).toBe(false);
+    const issue = result.error?.issues.find((i) => i.path.join(".") === "items.0.unit");
+    expect(issue?.message).toBe("Choose a unit");
+  });
+});
+
+describe("mergeSavedLines", () => {
+  const ETH = { id: PRODUCT_ID, name: "TEST-Ethanol" };
+  const WAT = { id: "e2e00000-0000-4000-8000-000000000002", name: "TEST-Water" };
+
+  it("with no lines and no products, starts with one empty free-text line", () => {
+    expect(mergeSavedLines([], [])).toEqual({ mode: "replace", lines: [emptyLine()] });
+  });
+
+  it("with no lines, adds one line per saved product", () => {
+    expect(mergeSavedLines([], [ETH, WAT])).toEqual({
+      mode: "replace",
+      lines: [catalogueLine(ETH), catalogueLine(WAT)],
+    });
+  });
+
+  it("a single untouched blank line gives way to saved products", () => {
+    expect(mergeSavedLines([emptyLine()], [ETH])).toEqual({ mode: "replace", lines: [catalogueLine(ETH)] });
+  });
+
+  it("appends only products not already present and never touches typed lines", () => {
+    const current = [
+      { ...catalogueLine(ETH), quantity: "25", unit: "KG" as const, notes: "Drums" },
+      { ...emptyLine(), name: "TEST Custom blend", quantity: "3", unit: "L" as const },
+    ];
+    expect(mergeSavedLines(current, [ETH, WAT])).toEqual({ mode: "append", lines: [catalogueLine(WAT)] });
+  });
+
+  it("is idempotent: nothing to do when every product is present", () => {
+    const current = [{ ...catalogueLine(ETH), quantity: "1" }];
+    expect(mergeSavedLines(current, [ETH])).toEqual({ mode: "none", lines: [] });
+    expect(mergeSavedLines([emptyLine()], [])).toEqual({ mode: "none", lines: [] });
+  });
+
+  it("matches product ids case-insensitively", () => {
+    const current = [catalogueLine({ ...ETH, id: PRODUCT_ID.toUpperCase() })];
+    expect(mergeSavedLines(current, [ETH]).mode).toBe("none");
   });
 });

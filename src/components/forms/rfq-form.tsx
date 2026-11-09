@@ -5,16 +5,17 @@ import { Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
-import { useFieldArray, useForm, useWatch, type FieldErrors, type FieldPath } from "react-hook-form";
+import { useFieldArray, useForm, useWatch, type FieldErrors, type FieldPath, type Resolver } from "react-hook-form";
 import { contacts } from "@/content/site";
 import { getEnquiryProducts, submitRfq, type EnquiryProduct } from "@/features/enquiries/actions";
 import { confirmationHref } from "@/features/enquiries/confirmation";
 import {
   ATTACHMENT_ACCEPT,
   buildRfqFormData,
-  catalogueLine,
   checkSelectedFiles,
   emptyLine,
+  mergeSavedLines,
+  pristineValues,
   formatFileSize,
   type RfqFormValues,
 } from "@/features/enquiries/form-state";
@@ -146,17 +147,9 @@ type LoadState = "loading" | "ready";
 export function RfqForm() {
   const router = useRouter();
   const form = useForm<RfqFormValues>({
-    resolver: zodResolver(rfqSchema),
-    defaultValues: {
-      fullName: "",
-      companyName: "",
-      email: "",
-      phone: "",
-      country: "",
-      intendedApplication: "",
-      additionalRequirements: "",
-      items: [],
-    },
+    // The form type allows an unchosen unit (""); rfqSchema rejects it with "Choose a unit".
+    resolver: zodResolver(rfqSchema) as unknown as Resolver<RfqFormValues>,
+    defaultValues: pristineValues(),
     mode: "onSubmit",
     reValidateMode: "onChange",
     // Focus is moved by hand to the first invalid field in DOM order (lines
@@ -173,6 +166,8 @@ export function RfqForm() {
   const [files, setFiles] = useState<File[]>([]);
   const [fileErrors, setFileErrors] = useState<string[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
+  /** Reference of the enquiry just sent, shown while the confirmation page opens. */
+  const [sent, setSent] = useState<string | null>(null);
   const [failedOnce, setFailedOnce] = useState(false);
   const [announcement, setAnnouncement] = useState("");
   const [focusTick, setFocusTick] = useState(0);
@@ -187,18 +182,28 @@ export function RfqForm() {
   const addButton = useRef<HTMLButtonElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  // Saved catalogue ids -> one line each (published products only).
+  // Saved catalogue ids -> lines (published products only), MERGED into what
+  // is already there. With cacheComponents, Next keeps this route mounted in a
+  // hidden <Activity> and re-runs effects when it becomes visible again, so
+  // this must never replace typed lines: mergeSavedLines only appends products
+  // that are not yet present (or fills a form that has no typed line at all).
   useEffect(() => {
     let cancelled = false;
     const ids = getList();
-    const finish = (lines: RfqFormValues["items"], message: string | null) => {
+    const apply = (products: EnquiryProduct[], message: string | null) => {
       if (cancelled) return;
-      replace(lines.length ? lines : [emptyLine()]);
+      setSent(null);
+      const { mode, lines } = mergeSavedLines(getValues("items") ?? [], products);
+      if (mode === "replace") replace(lines);
+      else if (mode === "append") append(lines, { shouldFocus: false });
+      if (products.length) {
+        setDetails((prev) => ({ ...prev, ...Object.fromEntries(products.map((p) => [p.id.toLowerCase(), p])) }));
+      }
       setNotice(message);
       setLoad("ready");
     };
     if (ids.length === 0) {
-      finish([], null);
+      apply([], null);
       return () => {
         cancelled = true;
       };
@@ -213,11 +218,10 @@ export function RfqForm() {
         });
         const missing = ids.filter((id) => !byId.has(id));
         for (const id of missing) removeProduct(id);
-        setDetails(Object.fromEntries(found.map((p) => [p.id.toLowerCase(), p])));
-        finish(found.map(catalogueLine), missing.length ? droppedMessage(missing.length) : null);
+        apply(found, missing.length ? droppedMessage(missing.length) : null);
       },
       () =>
-        finish(
+        apply(
           [],
           "We could not load your saved products just now. You can add them by name below, or reload the page to try again.",
         ),
@@ -225,7 +229,7 @@ export function RfqForm() {
     return () => {
       cancelled = true;
     };
-  }, [replace]);
+  }, [append, getValues, replace]);
 
   // After a failed submit: focus the form-level error, else the first invalid
   // field in DOM order. Runs after every render until the error markup exists
@@ -321,9 +325,17 @@ export function RfqForm() {
         return;
       }
       if (result.ok) {
-        // Keep inFlight set: the page is leaving.
+        // Reset BEFORE navigating: with cacheComponents this component stays
+        // mounted (hidden) and reappears on Back or via the header link, so
+        // it must come back pristine and usable. The submissionId is dropped,
+        // so the next enquiry gets a new one and this one cannot be re-sent.
+        // If navigation does not happen, the visitor still sees the
+        // reference with a link to the confirmation, and a working form.
         clearList();
         submissionId.current = null;
+        resetAfterSuccess();
+        inFlight.current = false;
+        setSent(result.reference);
         router.push(confirmationHref(result.reference));
         return;
       }
@@ -337,6 +349,20 @@ export function RfqForm() {
     announceProblems(Math.max(1, countMessages(errs) + (fileErrors.length ? 1 : 0)));
     failed();
   };
+
+  function resetAfterSuccess() {
+    form.reset({ ...pristineValues(), items: [emptyLine()] });
+    setFiles([]);
+    setFileErrors([]);
+    setFormError(null);
+    setFailedOnce(false);
+    setAnnouncement("");
+    setNotice(null);
+    setDetails({});
+    focusedTick.current = focusTick;
+    if (honeypot.current) honeypot.current.value = "";
+    if (fileInput.current) fileInput.current.value = "";
+  }
 
   function removeLine(index: number) {
     const productId = getValues(`items.${index}.productId`);
@@ -386,6 +412,15 @@ export function RfqForm() {
       <p aria-live="polite" className="sr-only">
         {announcement}
       </p>
+
+      {sent ? (
+        <p role="status" className="mb-10 border-l-4 border-olive-deep bg-white p-5 text-sm leading-relaxed">
+          Your enquiry has been sent. Your reference is <span className="font-mono">{sent}</span>.{" "}
+          <Link href={confirmationHref(sent)} className="text-bronze-text underline underline-offset-4">
+            View the confirmation
+          </Link>
+        </p>
+      ) : null}
 
       {formError ? (
         <div
@@ -516,6 +551,9 @@ export function RfqForm() {
                   <Field path={`items.${i}.unit`} label="Unit" error={lineErrors?.unit?.message}>
                     {(a11y) => (
                       <select {...a11y} className={inputCls} {...register(`items.${i}.unit`)}>
+                        <option value="" disabled>
+                          Select unit
+                        </option>
                         {UNITS.map((u) => (
                           <option key={u} value={u}>
                             {UNIT_LABELS[u]}
