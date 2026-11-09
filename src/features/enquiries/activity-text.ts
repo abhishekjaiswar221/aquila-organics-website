@@ -46,6 +46,10 @@ export function describeActivity(
       return field(detail, "kind") === "acknowledgement"
         ? "Acknowledgement email could not be sent."
         : "Internal notification could not be sent.";
+    case "email.skipped":
+      return field(detail, "reason") === "recipient limit"
+        ? "Acknowledgement email not sent: this address has reached its daily limit."
+        : "Acknowledgement email not sent.";
     case "notification.skipped":
       return "Internal notification skipped: no recipients are configured.";
     case "status.changed": {

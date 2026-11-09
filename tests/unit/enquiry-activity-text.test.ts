@@ -34,6 +34,13 @@ describe("describeActivity", () => {
     );
   });
 
+  it("describes an acknowledgement skipped by the per-recipient limit", () => {
+    expect(describeActivity("email.skipped", { reason: "recipient limit" })).toBe(
+      "Acknowledgement email not sent: this address has reached its daily limit.",
+    );
+    expect(describeActivity("email.skipped", null)).toBe("Acknowledgement email not sent.");
+  });
+
   it("describes a skipped notification", () => {
     expect(describeActivity("notification.skipped", { reason: "no recipients configured" })).toBe(
       "Internal notification skipped: no recipients are configured.",

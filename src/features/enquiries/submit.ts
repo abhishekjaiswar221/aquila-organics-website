@@ -1,4 +1,4 @@
-import { randomBytes, randomInt } from "node:crypto";
+import { createHash, randomBytes, randomInt } from "node:crypto";
 import { z } from "zod";
 import { Prisma, type EnquiryType } from "@/generated/prisma/client";
 import { getPublishedProductsByIds } from "@/features/products/queries";
@@ -35,7 +35,9 @@ import { getStorage } from "@/lib/storage";
  * replay check (submissionId) -> rate limit -> attachments -> resolve product
  * lines (published only) -> write attachment files -> one transaction for
  * enquiry, items, attachment rows and the creation activity -> best-effort
- * emails. Honeypot hits, invalid fields and replays never touch the limiter.
+ * emails (the acknowledgement capped per recipient address, see
+ * RFQ_ACK_LIMIT). Honeypot hits, invalid fields and replays never touch
+ * either limiter.
  *
  * Files are written BEFORE the transaction and deleted again if it fails (or
  * loses a submissionId race), so a stored EnquiryAttachment row always points
@@ -52,6 +54,14 @@ export const RFQ_RATE_LIMIT = 5;
  */
 export const RFQ_UNRESOLVED_IP_RATE_LIMIT = 100;
 export const RFQ_RATE_WINDOW_MS = 60 * 60 * 1000;
+/**
+ * Acknowledgements per recipient address per window. The acknowledgement goes
+ * to whatever address was typed, so without a cap the form could be used to
+ * flood a third party's inbox. Over the cap the enquiry is still stored and
+ * sales are still notified; only the acknowledgement is skipped.
+ */
+export const RFQ_ACK_LIMIT = 3;
+export const RFQ_ACK_WINDOW_MS = 24 * 60 * 60 * 1000;
 export const RFQ_EMAIL_TIMEOUT_MS = 8_000;
 const NO_TRUSTED_IP = "no-trusted-ip";
 const MAX_USER_AGENT = 200;
@@ -124,6 +134,23 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Limiter key for the acknowledgement cap: a salted SHA-256 of the trimmed,
+ * lowercased address, so the raw address is never stored in RateLimitHit.
+ */
+export function rfqAckLimitKey(email: string): string {
+  const digest = createHash("sha256")
+    .update(`${env.RATE_LIMIT_SALT}:rfq-ack:${email.trim().toLowerCase()}`)
+    .digest("hex");
+  return `rfq-ack:${digest}`;
+}
+
+/** True when this recipient may get another acknowledgement (counts this one). */
+async function ackAllowed(email: string): Promise<boolean> {
+  const verdict = await checkRateLimit(dbRateLimitStore, rfqAckLimitKey(email), RFQ_ACK_LIMIT, RFQ_ACK_WINDOW_MS);
+  return verdict.allowed;
 }
 
 function warnUnresolvedIpOnce(): void {
@@ -388,13 +415,30 @@ async function notify(
     name: l.name,
     quantity: String(l.quantity),
     unit: UNIT_LABELS[l.unit],
+    notes: l.notes ?? undefined,
   }));
-  await sendLogged(
-    enquiry.id,
-    "acknowledgement",
-    [data.email],
-    acknowledgementEmail({ reference: enquiry.reference, fullName: data.fullName, items }),
-  );
+
+  // Per-recipient cap first. If the limiter itself fails, err on the side of
+  // not sending (the enquiry is stored either way).
+  let mayAcknowledge = false;
+  let skipReason = "recipient limit";
+  try {
+    mayAcknowledge = await ackAllowed(data.email);
+  } catch (err) {
+    console.error("[rfq] acknowledgement limit check failed:", errorClass(err));
+    skipReason = "limit check failed";
+  }
+  if (mayAcknowledge) {
+    await sendLogged(
+      enquiry.id,
+      "acknowledgement",
+      [data.email],
+      acknowledgementEmail({ reference: enquiry.reference, fullName: data.fullName, lineCount: record.lines.length }),
+    );
+  } else {
+    console.warn(`[rfq] acknowledgement skipped for ${enquiry.reference}: ${skipReason}`);
+    await recordActivity(enquiry.id, "email.skipped", { reason: skipReason });
+  }
 
   let recipients: string[] = [];
   try {

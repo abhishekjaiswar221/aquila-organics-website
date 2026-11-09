@@ -2,15 +2,26 @@ export interface EmailItem {
   name: string;
   quantity: string;
   unit: string;
+  notes?: string;
 }
 
+/**
+ * The acknowledgement goes to whatever address the visitor typed, so it is
+ * kept minimal: it must not become a way to deliver someone else's text to a
+ * third party. Only the reference, the number of product lines and the
+ * visitor's (sanitised) name in the greeting; no item names, notes, company
+ * or requirements. The internal notification carries the full details.
+ */
 export interface AcknowledgementInput {
   reference: string;
   fullName: string;
-  items: EmailItem[];
+  lineCount: number;
 }
 
-export interface InternalNotificationInput extends AcknowledgementInput {
+export interface InternalNotificationInput {
+  reference: string;
+  fullName: string;
+  items: EmailItem[];
   company?: string;
   email?: string;
   phone?: string;
@@ -42,37 +53,62 @@ function oneLine(value: string): string {
   return value.replace(LINE_BREAKS, " ").trim();
 }
 
+// Controls, bidi overrides, zero-width characters and the BOM: never wanted in a greeting.
+const INVISIBLE = new RegExp("[\u0000-\u001F\u007F-\u009F​-‏‪-‮⁠-⁤⁦-⁩﻿]", "g");
+const MAX_GREETING_NAME = 120;
+
+/** The visitor's name as used in the greeting: one line, no invisible characters, bounded. */
+function greetingName(value: string): string {
+  const name = oneLine(value).replace(INVISIBLE, "").replace(/\s+/g, " ").trim();
+  return [...name].slice(0, MAX_GREETING_NAME).join("");
+}
+
 const h = escapeHtml;
+
+function itemLine(i: EmailItem): string {
+  return `${i.name}: ${i.quantity} ${i.unit}${i.notes ? ` (${i.notes})` : ""}`;
+}
 
 function htmlItems(items: EmailItem[]): string {
   const rows = items
-    .map((i) => `<li>${h(i.name)} &mdash; ${h(i.quantity)} ${h(i.unit)}</li>`)
+    .map(
+      (i) =>
+        `<li>${h(i.name)} &mdash; ${h(i.quantity)} ${h(i.unit)}` +
+        `${i.notes ? ` <span style="white-space:pre-wrap">(${h(i.notes)})</span>` : ""}</li>`,
+    )
     .join("");
   return `<ul>${rows}</ul>`;
 }
 
 function textItems(items: EmailItem[]): string {
-  return items.map((i) => `- ${i.name}: ${i.quantity} ${i.unit}`).join("\n");
+  return items.map((i) => `- ${itemLine(i)}`).join("\n");
 }
 
 function wrapHtml(body: string): string {
   return `<!doctype html><html><body style="font-family:sans-serif;line-height:1.5">${body}</body></html>`;
 }
 
+function productLines(n: number): string {
+  return `${n} product ${n === 1 ? "line" : "lines"}`;
+}
+
 export function acknowledgementEmail(e: AcknowledgementInput): RenderedEmail {
+  const name = greetingName(e.fullName);
+  const lines = productLines(e.lineCount);
   const subject = oneLine(`We received your enquiry ${e.reference}`);
   const html = wrapHtml(
-    `<p>Dear ${h(e.fullName)},</p>` +
+    `<p>Dear ${h(name)},</p>` +
       `<p>Thank you for your enquiry. Your reference is <strong>${h(e.reference)}</strong>.</p>` +
-      `<p>Requested products:</p>${htmlItems(e.items)}` +
-      `<p>Our team will review your request and reply shortly.</p>` +
+      `<p>We have received your request for ${h(lines)}.</p>` +
+      `<p>Our team will review your request and reply shortly. Please quote the reference in any correspondence.</p>` +
       `<p>Aquila Organics</p>`,
   );
   const text =
-    `Dear ${e.fullName},\n\n` +
+    `Dear ${name},\n\n` +
     `Thank you for your enquiry. Your reference is ${e.reference}.\n\n` +
-    `Requested products:\n${textItems(e.items)}\n\n` +
-    `Our team will review your request and reply shortly.\n\nAquila Organics\n`;
+    `We have received your request for ${lines}.\n\n` +
+    `Our team will review your request and reply shortly. Please quote the reference in any correspondence.\n\n` +
+    `Aquila Organics\n`;
   return { subject, html, text };
 }
 

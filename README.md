@@ -51,6 +51,13 @@ The RFQ form (`/rfq`) has its own limiter, using the same header rules:
 - **What counts.** Submissions with invalid fields do not count, and neither do honeypot hits or replays of an already-stored submission (same `submissionId`).
 - **Not pruned yet.** Old `RateLimitHit` rows are not cleaned up. Delete rows with an old `windowStart` periodically until a cleanup job exists.
 
+### Email abuse limits
+
+The RFQ acknowledgement email goes to whatever address the visitor types, so with a real email provider the form could otherwise be used to send mail to a third party. Two safeguards:
+
+- **Per-recipient cap.** At most `RFQ_ACK_LIMIT` (3) acknowledgements per address per `RFQ_ACK_WINDOW_MS` (24 hours; a fixed window aligned to UTC midnight), in `src/features/enquiries/submit.ts`. The count is kept in `RateLimitHit` under `rfq-ack:<salted SHA-256 of the trimmed, lowercased address>` (salt: `RATE_LIMIT_SALT`), never the raw address. This cap is independent of the per-IP submission limit. Over the cap, the enquiry is still stored and the internal notification still goes to sales; only the acknowledgement is skipped, and an `email.skipped` activity (`{ reason: "recipient limit" }`) is recorded. A failed send uses one unit, like a successful one. Replays and honeypot hits use none.
+- **Minimal content.** The acknowledgement contains only the visitor's name (sanitised and escaped), the reference and the number of product lines: no item names, notes, company or requirements, so it cannot carry someone else's text to a victim. The internal notification keeps the full details.
+
 ## Layout
 
 ```

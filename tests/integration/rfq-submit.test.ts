@@ -50,9 +50,18 @@ const { submitRfq } = await import("@/features/enquiries/actions");
 const { getStorage } = await import("@/lib/storage");
 const { hashIp } = await import("@/lib/client-ip");
 const { env } = await import("@/lib/env");
-const { rfqTesting, RFQ_RATE_LIMIT, RFQ_UNRESOLVED_IP_RATE_LIMIT, RFQ_RATE_WINDOW_MS } = await import(
-  "@/features/enquiries/submit"
-);
+const {
+  rfqTesting,
+  rfqAckLimitKey,
+  RFQ_ACK_LIMIT,
+  RFQ_ACK_WINDOW_MS,
+  RFQ_RATE_LIMIT,
+  RFQ_UNRESOLVED_IP_RATE_LIMIT,
+  RFQ_RATE_WINDOW_MS,
+} = await import("@/features/enquiries/submit");
+
+/** Per-IP submission limiter rows only (the acknowledgement limiter uses "rfq-ack:"). */
+const IP_HITS = { where: { key: { startsWith: "rfq:" } } };
 
 const YEAR = new Date().getUTCFullYear();
 const UA = `TEST-Agent/1.0 ${"x".repeat(400)}`;
@@ -248,7 +257,7 @@ describe("submitRfq", () => {
     expect(await db.enquiry.count()).toBe(5);
 
     // The limiter key is the salted hash, never the raw IP.
-    const hits = await db.rateLimitHit.findMany();
+    const hits = await db.rateLimitHit.findMany(IP_HITS);
     expect(hits).toHaveLength(1);
     expect(hits[0].key).not.toContain(ip);
     expect(hits[0].count).toBe(6);
@@ -309,7 +318,7 @@ describe("submitRfq", () => {
     }
     state.headers = new Headers({ "x-forwarded-for": ip });
     expect((await submitRfq(form([freeLine()]))).ok).toBe(true);
-    expect((await db.rateLimitHit.findFirstOrThrow()).count).toBe(1);
+    expect((await db.rateLimitHit.findFirstOrThrow(IP_HITS)).count).toBe(1);
   });
 
   it("returns the free-mail hint as a warning on success", async () => {
@@ -517,7 +526,7 @@ describe("submitRfq", () => {
     const result = await submitRfq(form([freeLine()]));
     expect(result.ok).toBe(true);
     expect((await db.enquiry.findFirstOrThrow()).ipHash).toBeNull();
-    const [hit] = await db.rateLimitHit.findMany();
+    const [hit] = await db.rateLimitHit.findMany(IP_HITS);
     expect(hit.key).toBe("rfq:no-trusted-ip");
     // Outside production nothing is logged.
     expect(spies.warn).not.toHaveBeenCalled();
@@ -576,7 +585,7 @@ describe("submitRfq idempotency (submissionId)", () => {
     expect(first.ok).toBe(true);
     const filesAfterFirst = await storedFiles();
     const sentAfterFirst = state.sent.length;
-    const hitsAfterFirst = (await db.rateLimitHit.findFirstOrThrow()).count;
+    const hitsAfterFirst = (await db.rateLimitHit.findFirstOrThrow(IP_HITS)).count;
 
     const second = await submitRfq(form([freeLine()], { submissionId: TOKEN }, [pdf()]));
     expect(second).toEqual(first.ok ? { ok: true, reference: first.reference, droppedProducts: [], warnings: {} } : null);
@@ -585,7 +594,7 @@ describe("submitRfq idempotency (submissionId)", () => {
     expect(await storedFiles()).toEqual(filesAfterFirst);
     expect(state.sent.length).toBe(sentAfterFirst);
     // A replay is not counted against the rate limit.
-    expect((await db.rateLimitHit.findFirstOrThrow()).count).toBe(hitsAfterFirst);
+    expect((await db.rateLimitHit.findFirstOrThrow(IP_HITS)).count).toBe(hitsAfterFirst);
     expect((await db.enquiry.findFirstOrThrow()).submissionId).toBe(TOKEN);
   });
 
@@ -642,5 +651,153 @@ describe("email timeout", () => {
 
   it("defaults to an 8 second email timeout", () => {
     expect(rfqTesting.emailTimeoutMs()).toBe(8000);
+  });
+});
+
+describe("acknowledgement limit per recipient", () => {
+  const JANE = "jane@testfragrance.example";
+  const acksTo = (address: string) => state.sent.filter((m) => m.to.includes(address));
+  const internals = () => state.sent.filter((m) => m.to.some((t) => t.endsWith("@test.example")));
+  const ackRows = () => db.rateLimitHit.findMany({ where: { key: { startsWith: "rfq-ack:" } } });
+  /** A distinct client IP per loop iteration (the database is reset per test). */
+  const loopIp = (i: number) => {
+    state.headers = new Headers({ "x-forwarded-for": `192.0.2.${i + 1}`, "user-agent": UA });
+  };
+
+  it("allows 3 acknowledgements per address per 24 hours", () => {
+    expect(RFQ_ACK_LIMIT).toBe(3);
+    expect(RFQ_ACK_WINDOW_MS).toBe(24 * 60 * 60 * 1000);
+  });
+
+  it("the 4th submission is stored and notified internally, but gets no acknowledgement", async () => {
+    const spies = silence();
+    const refs: string[] = [];
+    for (let i = 0; i < 4; i++) {
+      // A new IP each time: the per-IP submission limit is not what stops it.
+      loopIp(i);
+      const result = await submitRfq(form([freeLine(), freeLine("TEST second line")]));
+      expect(result.ok).toBe(true);
+      if (result.ok) refs.push(result.reference);
+      expect(acksTo(JANE)).toHaveLength(Math.min(i + 1, 3));
+      expect(internals()).toHaveLength(i + 1);
+    }
+    expect(await db.enquiry.count()).toBe(4);
+
+    const fourth = await db.enquiry.findUniqueOrThrow({ where: { reference: refs[3] }, include: { activities: true } });
+    const actions = fourth.activities.map((a) => a.action).sort();
+    expect(actions).toEqual(["email.sent", "email.skipped", "enquiry.created"].sort());
+    const skipped = fourth.activities.find((a) => a.action === "email.skipped");
+    expect(skipped?.detail).toEqual({ reason: "recipient limit" });
+    const sent = fourth.activities.find((a) => a.action === "email.sent");
+    expect(sent?.detail).toMatchObject({ kind: "internal" });
+    // Nothing logged carries the address.
+    expect(JSON.stringify([spies.warn.mock.calls, spies.error.mock.calls])).not.toContain("@");
+  });
+
+  it("a different address is unaffected", async () => {
+    silence();
+    for (let i = 0; i < 4; i++) {
+      loopIp(i);
+      await submitRfq(form([freeLine()]));
+    }
+    useIp();
+    expect((await submitRfq(form([freeLine()], { email: "other.buyer@testfragrance.example" }))).ok).toBe(true);
+    expect(acksTo("other.buyer@testfragrance.example")).toHaveLength(1);
+  });
+
+  it("case and whitespace variants of one address count as one recipient", async () => {
+    silence();
+    for (const [i, email] of [JANE, "JANE@TestFragrance.Example", `  ${JANE}  `, "Jane@testfragrance.example"].entries()) {
+      loopIp(i);
+      expect((await submitRfq(form([freeLine()], { email }))).ok).toBe(true);
+    }
+    expect(state.sent.filter((m) => m.subject.startsWith("We received"))).toHaveLength(3);
+    const rows = await ackRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].count).toBe(4);
+    expect(rfqAckLimitKey("JANE@TestFragrance.Example ")).toBe(rfqAckLimitKey(JANE));
+  });
+
+  it("the limiter key is a salted hash: no raw address in RateLimitHit", async () => {
+    useIp();
+    await submitRfq(form([freeLine()]));
+    const rows = await db.rateLimitHit.findMany();
+    expect(rows.length).toBeGreaterThan(0);
+    const [ack] = await ackRows();
+    expect(ack.key).toMatch(/^rfq-ack:[0-9a-f]{64}$/);
+    expect(ack.key).toBe(rfqAckLimitKey(JANE));
+    expect(ack.windowStart.getTime() % RFQ_ACK_WINDOW_MS).toBe(0);
+    for (const row of rows) {
+      for (const part of [JANE, "jane", "testfragrance"]) expect(row.key.toLowerCase()).not.toContain(part);
+    }
+    // Salted: not the plain SHA-256 of the address.
+    const { createHash } = await import("node:crypto");
+    expect(ack.key).not.toContain(createHash("sha256").update(JANE).digest("hex"));
+  });
+
+  it("applies independently of the per-IP limit: one IP, two addresses", async () => {
+    silence();
+    const ip = useIp();
+    for (let i = 0; i < 4; i++) {
+      state.headers = new Headers({ "x-forwarded-for": ip });
+      expect((await submitRfq(form([freeLine()]))).ok).toBe(true);
+    }
+    state.headers = new Headers({ "x-forwarded-for": ip });
+    expect((await submitRfq(form([freeLine()], { email: "second@testfragrance.example" }))).ok).toBe(true);
+    // The IP used 5 of its 5; the first address hit its ack cap, the second did not.
+    expect(acksTo(JANE)).toHaveLength(3);
+    expect(acksTo("second@testfragrance.example")).toHaveLength(1);
+    expect((await db.rateLimitHit.findFirstOrThrow(IP_HITS)).count).toBe(5);
+  });
+
+  it("a replayed submission sends nothing and uses no acknowledgement quota", async () => {
+    const TOKEN = "7c6b5a4d-3e2f-4a1b-9c0d-8e7f6a5b4c3d";
+    useIp();
+    await submitRfq(form([freeLine()], { submissionId: TOKEN }));
+    await submitRfq(form([freeLine()], { submissionId: TOKEN }));
+    await submitRfq(form([freeLine()], { submissionId: TOKEN }));
+    expect(acksTo(JANE)).toHaveLength(1);
+    expect((await ackRows())[0].count).toBe(1);
+  });
+
+  it("the honeypot path sends nothing and uses no quota", async () => {
+    useIp();
+    await submitRfq(form([freeLine()], { website: "http://spam.example" }));
+    expect(state.sent).toEqual([]);
+    expect(await ackRows()).toEqual([]);
+  });
+
+  it("a failed acknowledgement send uses one unit of quota and does not fail the submission", async () => {
+    silence();
+    state.emailMode = "throw";
+    useIp();
+    expect((await submitRfq(form([freeLine()]))).ok).toBe(true);
+    expect((await ackRows())[0].count).toBe(1);
+    expect(await db.enquiryActivity.count({ where: { action: "email.failed" } })).toBe(2);
+    expect(await db.enquiryActivity.count({ where: { action: "email.skipped" } })).toBe(0);
+  });
+
+  it("the acknowledgement repeats no free text: only the reference and the line count", async () => {
+    const product = await makeProduct("TEST-Linalool", "PUBLISHED", "78-70-6");
+    useIp();
+    const result = await submitRfq(
+      form(
+        [
+          { productId: product.id, name: "TEST-Linalool", quantity: "25", unit: "KG", notes: "TEST-line-note visit evil.example" },
+          { name: "TEST-Free item click here", quantity: "1", unit: "L" },
+        ],
+        { additionalRequirements: "TEST-requirements text", companyName: "TEST-Company spam" },
+      ),
+    );
+    expect(result.ok).toBe(true);
+    const [ack] = acksTo(JANE);
+    const internal = state.sent.find((m) => m.to.includes("sales@test.example") || m.to.includes("sales-fragrance@test.example"));
+    for (const secret of ["TEST-line-note", "evil.example", "TEST-Free item", "TEST-requirements", "TEST-Company", "TEST-Linalool"]) {
+      expect(`${ack.subject}${ack.html}${ack.text}`).not.toContain(secret);
+      expect(internal?.text).toContain(secret);
+    }
+    expect(ack.text).toContain("2 product lines");
+    expect(ack.text).toContain(result.ok ? result.reference : "-");
+    expect(ack.text).toContain("Dear TEST Jane Buyer,");
   });
 });
