@@ -51,11 +51,11 @@ export const TEXT_LIMITS = {
 export const ATTACHMENTS_FIELD = "attachments";
 export const HONEYPOT_FIELD = "website";
 
-const LINE_BREAKS = new RegExp("\r\n|[\n\r\u000B\u000C\u0085  ]", "g");
+const LINE_BREAKS = new RegExp("\r\n|[\n\r\u000B\u000C\u0085\u2028\u2029]", "g");
 // C0/C1 controls (tab and LF handled separately), bidi overrides, zero-width
 // characters and the BOM.
 const INVISIBLE = new RegExp(
-  "[\u0000-\u0008\u000E-\u001F\u007F-\u009F​-‏‪-‮⁠-⁤⁦-⁩﻿]",
+  "[\u0000-\u0008\u000E-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]",
   "g",
 );
 
