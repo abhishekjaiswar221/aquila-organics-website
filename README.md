@@ -13,6 +13,12 @@ Built so far:
   - A multi-product request for quotation (`/rfq`) with attachments, a confirmation page and a draft privacy notice (`/privacy`).
   - A minimal admin (`/admin`) for publishing products and handling enquiries.
   - `sitemap.xml` and `robots.txt`.
+- **Sub-project 3 (core business content pages):**
+  - Fragrances and Flavours: two overviews and eleven application pages (`/fragrances/...`, `/flavours/...`).
+  - About, Innovation, Sustainability, Legal and regulatory compliance and Certifications, built only from verified or brief-supplied content. The certifications page lists confirmed certificates only (none yet) and is `noindex` until one exists.
+  - A Contact page (`/contact`) with verified details and four message forms (fragrances, flavours, aroma chemicals, general). Each creates an enquiry of the matching type with no product lines, through the same pipeline as the quotation request: honeypot, per-IP and per-address rate limits, duplicate-submission protection, attachments, minimal acknowledgement email. `?type=` and `?application=` preselect a form.
+  - Navigation, footer and homepage links point at the real pages. Old-site URLs for these pages redirect once each (`docs/url-migration.md`).
+  - Page copy sits in typed modules under `src/content/`; `npm run content:report` lists every block still awaiting client confirmation.
 
 Not built yet:
 
@@ -23,7 +29,7 @@ Not built yet:
   - There is no Cloudflare R2 or Resend integration yet. Do not enable a real email provider before reading "Email abuse limits" below.
 - **Content.** No product is published: the 20 legacy products import as unverified drafts. The privacy notice needs legal review. See `docs/content-verification.md` for the full list.
 
-The remaining public pages, careers, resources and the full admin are later sub-projects (see `docs/sitemap.md`).
+Careers, the resources blog and the full admin and content management are later sub-projects (see `docs/sitemap.md`). Until the careers pages exist, the old `/careers` URL answers 404 (`docs/url-migration.md`).
 
 ## Stack
 
@@ -134,6 +140,7 @@ Only `SUPER_ADMIN` and `SALES_MANAGER` may use the admin. Any other role gets a 
 | `npm run db:migrate` / `db:reset` / `db:generate` | `prisma migrate dev` (interactive), `prisma migrate reset --force` (wipes the **development** database), `prisma generate` |
 | `npm run seed:admin` | Creates the first `SUPER_ADMIN` (see above) |
 | `npm run import:products -- <file>` | Imports products as unverified drafts (see above) |
+| `npm run content:report` | Lists every content block still awaiting client confirmation or taken from the brief only |
 
 ### Running the tests
 
@@ -184,11 +191,11 @@ The RFQ acknowledgement email goes to whatever address the visitor types, so wit
 ## Layout
 
 ```
-src/app/(public)/      public routes: homepage, catalogue, RFQ, privacy
+src/app/(public)/      public routes: homepage, catalogue, RFQ, privacy, fragrances, flavours, about, innovation, sustainability, contact
 src/app/admin/         admin login and panel (products, enquiries)
 src/app/api/           Better Auth endpoint, admin attachment downloads
-src/proxy.ts           product 404s and the signed-out admin redirect
-src/components/        ui/, layout/, marketing/, motion/, catalogue/, forms/, admin/
+src/proxy.ts           product and application 404s, and the signed-out admin redirect
+src/components/        ui/, layout/, marketing/, pages/ (templates), motion/, catalogue/, forms/, admin/
 src/content/           typed page copy with verification status
 src/features/          products, enquiries and admin: queries, actions, validation
 src/lib/               auth, permissions, db, env, storage, email, rate limits, SEO helpers
@@ -206,7 +213,7 @@ Page copy lives in `src/content/`. Every block carries a status (`verified`, `br
 ## Documentation
 
 - `docs/company-research.md`, `docs/content-verification.md`
-- `docs/design-system.md`, `docs/sitemap.md`, `docs/asset-inventory.md`
+- `docs/design-system.md`, `docs/sitemap.md`, `docs/url-migration.md`, `docs/asset-inventory.md`
 - `docs/database-design.md`
 - `docs/superpowers/specs/` and `docs/superpowers/plans/`
 - `docs/screenshots/` review captures (homepage at four widths; catalogue, RFQ and admin at 375 and 1280)

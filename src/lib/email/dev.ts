@@ -8,7 +8,9 @@ export class DevEmailProvider implements EmailProvider {
   private readonly dir: string;
 
   constructor(dir: string = path.resolve(process.cwd(), "storage", "outbox")) {
-    this.dir = path.resolve(dir);
+    // The outbox directory is a runtime path chosen by configuration; without this hint Turbopack
+    // traces the whole project into the server output for a development-only driver.
+    this.dir = path.resolve(/*turbopackIgnore: true*/ dir);
   }
 
   async send(msg: EmailMessage): Promise<void> {

@@ -10,20 +10,17 @@ import { contacts } from "@/content/site";
 import { getEnquiryProducts, submitRfq, type EnquiryProduct } from "@/features/enquiries/actions";
 import { confirmationHref } from "@/features/enquiries/confirmation";
 import {
-  ATTACHMENT_ACCEPT,
   buildRfqFormData,
   checkSelectedFiles,
   emptyLine,
   mergeSavedLines,
   pristineValues,
-  formatFileSize,
   type RfqFormValues,
 } from "@/features/enquiries/form-state";
 import {
   BUSINESS_SEGMENTS,
   BUSINESS_SEGMENT_LABELS,
   HONEYPOT_FIELD,
-  MAX_ATTACHMENTS,
   MAX_ITEMS,
   TEXT_LIMITS,
   UNITS,
@@ -35,6 +32,23 @@ import {
 import { clearList, getList, removeProduct } from "@/features/enquiries/store-client";
 import { CATALOGUE_PATH } from "@/lib/seo/site-url";
 import { cn } from "@/lib/utils";
+import {
+  AttachmentsField,
+  ConsentField,
+  FormField,
+  HoneypotField,
+  NETWORK_ERROR,
+  RELOAD_ERROR,
+  attachmentRulesHint,
+  controlCls,
+  countMessages,
+  describedBy,
+  errorCls,
+  inputCls,
+  newSubmissionId,
+  problemsMessage,
+  type FieldA11y,
+} from "./form-fields";
 
 /*
  * The RFQ form. React Hook Form validates with the shared rfqSchema; the
@@ -46,43 +60,10 @@ import { cn } from "@/lib/utils";
  * reference instead of storing a duplicate. A fresh one only after success.
  */
 
-const NETWORK_ERROR =
-  "We could not reach our server, so your enquiry may not have been sent. Check your connection and try again: your details are still here, and sending again will not create a duplicate.";
-const RELOAD_ERROR = "Something went wrong with this form. Please reload the page and try again.";
-
-const labelCls = "block text-sm font-medium text-charcoal";
-const hintCls = "mt-1.5 text-xs leading-relaxed text-muted-foreground";
-const errorCls = "mt-1.5 text-sm font-medium text-destructive";
-const controlCls =
-  "mt-2 block w-full min-w-0 rounded-sm border border-charcoal/40 bg-white px-3 text-base text-charcoal placeholder:text-muted-foreground focus-visible:border-charcoal aria-invalid:border-destructive aria-invalid:border-2";
-const inputCls = `${controlCls} h-12`;
-
-function newSubmissionId(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
-  // Fallback for non-secure contexts: RFC 4122 v4 from getRandomValues.
-  const b = crypto.getRandomValues(new Uint8Array(16));
-  b[6] = (b[6] & 0x0f) | 0x40;
-  b[8] = (b[8] & 0x3f) | 0x80;
-  const h = [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
-  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
-}
-
-function describedBy(...ids: unknown[]): string | undefined {
-  const list = ids.filter((x): x is string => typeof x === "string" && x !== "").join(" ");
-  return list || undefined;
-}
-
 function droppedMessage(n: number): string {
   return n === 1
     ? "1 saved product is no longer available and was removed from your list."
     : `${n} saved products are no longer available and were removed from your list.`;
-}
-
-/** Number of distinct field messages in a (nested) React Hook Form errors object. */
-function countMessages(node: unknown): number {
-  if (!node || typeof node !== "object") return 0;
-  if ("message" in node && typeof node.message === "string" && node.message) return 1;
-  return Object.entries(node).reduce((n, [key, value]) => (key === "ref" ? n : n + countMessages(value)), 0);
 }
 
 const fieldId = (path: string) => `rfq-${path.replace(/\./g, "-")}`;
@@ -94,39 +75,12 @@ type FieldProps = {
   hint?: ReactNode;
   extraHint?: ReactNode;
   className?: string;
-  children: (a11y: { id: string; "aria-invalid"?: true; "aria-describedby"?: string }) => ReactNode;
+  children: (a11y: FieldA11y) => ReactNode;
 };
 
-/** Label, control, hint and error wired together with ids. */
-function Field({ path, label, error, hint, extraHint, className, children }: FieldProps) {
-  const id = fieldId(path);
-  return (
-    <div className={cn("min-w-0", className)}>
-      <label htmlFor={id} className={labelCls}>
-        {label}
-      </label>
-      {children({
-        id,
-        "aria-invalid": error ? true : undefined,
-        "aria-describedby": describedBy(hint && `${id}-hint`, extraHint && `${id}-extra`, error && `${id}-error`),
-      })}
-      {hint ? (
-        <p id={`${id}-hint`} className={hintCls}>
-          {hint}
-        </p>
-      ) : null}
-      {extraHint ? (
-        <p id={`${id}-extra`} className="mt-1.5 text-xs leading-relaxed text-bronze-text">
-          {extraHint}
-        </p>
-      ) : null}
-      {error ? (
-        <p id={`${id}-error`} className={errorCls}>
-          {error}
-        </p>
-      ) : null}
-    </div>
-  );
+/** The shared FormField with this form's id scheme. */
+function Field({ path, ...props }: FieldProps) {
+  return <FormField id={fieldId(path)} {...props} />;
 }
 
 function SectionTitle({ n, children, id }: { n: string; children: ReactNode; id: string }) {
@@ -269,11 +223,7 @@ export function RfqForm() {
   push("consent", errors.consent?.message);
 
   const announceProblems = (count: number) => {
-    setAnnouncement(
-      count === 1
-        ? "There is 1 problem with your enquiry. It is described next to the field."
-        : `There are ${count} problems with your enquiry. Each is described next to its field.`,
-    );
+    setAnnouncement(problemsMessage(count, "enquiry"));
   };
 
   const failed = () => {
@@ -388,6 +338,9 @@ export function RfqForm() {
     <form
       ref={formRef}
       noValidate
+      // Defence in depth: a click before hydration, or with JavaScript off, must never put the
+      // visitor's details in the URL (a native GET would). POST sends them in the body instead.
+      method="post"
       onSubmit={(e) => {
         // handleSubmit prevents the native submission.
         void form.handleSubmit(onValid, onInvalid)(e);
@@ -748,96 +701,27 @@ export function RfqForm() {
             )}
           </Field>
 
-          <div className="min-w-0">
-            <label htmlFor={attachmentsId} className={labelCls}>
-              Attachments (optional)
-            </label>
-            <input
-              ref={fileInput}
-              id={attachmentsId}
-              type="file"
-              multiple
-              accept={ATTACHMENT_ACCEPT}
-              aria-invalid={fileErrors.length ? true : undefined}
-              aria-describedby={describedBy(`${attachmentsId}-hint`, fileErrors.length > 0 && `${attachmentsId}-error`)}
-              onChange={(e) => onFiles(e.currentTarget.files)}
-              className="mt-2 block w-full min-w-0 text-sm text-muted-foreground file:mr-4 file:cursor-pointer file:rounded-sm file:border file:border-charcoal/40 file:bg-white file:px-4 file:py-2.5 file:text-sm file:font-medium file:text-charcoal hover:file:border-charcoal"
-            />
-            <p id={`${attachmentsId}-hint`} className={hintCls}>
-              PDF, PNG, JPG, DOCX, XLSX or CSV. Up to {MAX_ATTACHMENTS} files, 10 MB each. A specification or
-              target sheet helps us quote accurately.
-            </p>
-            {fileErrors.length ? (
-              <div id={`${attachmentsId}-error`} className={errorCls}>
-                {fileErrors.map((m) => (
-                  <p key={m}>{m}</p>
-                ))}
-              </div>
-            ) : null}
-            {files.length ? (
-              <ul aria-label="Selected files" className="mt-4 divide-y divide-charcoal/15 border-y border-charcoal/15">
-                {files.map((f, i) => (
-                  <li key={`${f.name}-${f.size}-${f.lastModified}`} className="flex items-center justify-between gap-4 py-2.5">
-                    <span className="min-w-0 wrap-break-word text-sm">
-                      {f.name}{" "}
-                      <span className="whitespace-nowrap font-mono text-xs text-muted-foreground">{formatFileSize(f.size)}</span>
-                    </span>
-                    <button
-                      type="button"
-                      aria-label={`Remove ${f.name}`}
-                      onClick={() => {
-                        setFiles((prev) => prev.filter((_, j) => j !== i));
-                        setFileErrors([]);
-                        fileInput.current?.focus();
-                      }}
-                      className="inline-flex shrink-0 items-center gap-1.5 rounded-sm px-2 py-1 text-xs text-muted-foreground hover:text-charcoal"
-                    >
-                      <X aria-hidden className="size-3.5" />
-                      Remove
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
+          <AttachmentsField
+            id={attachmentsId}
+            inputRef={fileInput}
+            files={files}
+            errors={fileErrors}
+            hint={attachmentRulesHint("A specification or target sheet helps us quote accurately.")}
+            onFiles={onFiles}
+            onRemove={(i) => {
+              setFiles((prev) => prev.filter((_, j) => j !== i));
+              setFileErrors([]);
+              fileInput.current?.focus();
+            }}
+          />
         </div>
       </section>
 
-      {/* Honeypot: invisible, unfocusable and hidden from assistive technology. */}
-      <div aria-hidden="true" className="pointer-events-none absolute left-[-9999px] top-0 h-px w-px overflow-hidden">
-        <label htmlFor="rfq-website">Leave this field empty</label>
-        <input ref={honeypot} id="rfq-website" type="text" name={HONEYPOT_FIELD} tabIndex={-1} autoComplete="off" defaultValue="" />
-      </div>
+      <HoneypotField id="rfq-website" inputRef={honeypot} />
 
       {/* Consent and send */}
       <div className="mt-16 border-t border-charcoal pt-8">
-        <div className="flex items-start gap-3">
-          <input
-            id={fieldId("consent")}
-            type="checkbox"
-            aria-invalid={errors.consent ? true : undefined}
-            aria-describedby={describedBy(`${fieldId("consent")}-hint`, errors.consent && `${fieldId("consent")}-error`)}
-            className="mt-1 size-5 shrink-0 accent-charcoal aria-invalid:outline-2 aria-invalid:outline-destructive"
-            {...register("consent")}
-          />
-          <div className="min-w-0">
-            <label htmlFor={fieldId("consent")} className="text-sm font-medium leading-relaxed">
-              I agree to Aquila Organics using these details to respond to my enquiry.
-            </label>
-            <p id={`${fieldId("consent")}-hint`} className={hintCls}>
-              How we handle your information is explained in our{" "}
-              <Link href="/privacy" className="text-bronze-text underline underline-offset-4">
-                privacy notice
-              </Link>
-              .
-            </p>
-            {errors.consent ? (
-              <p id={`${fieldId("consent")}-error`} className={errorCls}>
-                {errors.consent.message}
-              </p>
-            ) : null}
-          </div>
-        </div>
+        <ConsentField id={fieldId("consent")} error={errors.consent?.message} registration={register("consent")} />
 
         <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
           <button

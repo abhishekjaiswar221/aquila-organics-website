@@ -16,6 +16,7 @@ import {
 import { adminMetadata } from "@/features/admin/metadata";
 import { describeActivity } from "@/features/enquiries/activity-text";
 import { isSpreadsheetAttachment } from "@/features/enquiries/attachment-download";
+import { enquiryMessageLabel, showProductsSection } from "@/features/enquiries/display";
 import { getEnquiry } from "@/features/enquiries/queries";
 import { BUSINESS_SEGMENT_LABELS, BUSINESS_SEGMENTS, UNIT_LABELS } from "@/features/enquiries/schema";
 import { STATUS_LABELS, TYPE_LABELS } from "@/features/enquiries/status";
@@ -85,13 +86,14 @@ export default async function AdminEnquiryPage({ params }: PageProps<"/admin/enq
               <Field label="Country">{enquiry.country}</Field>
               <Field label="Business segment">{segmentLabel(enquiry.businessSegment)}</Field>
               <Field label="Intended application">{enquiry.intendedApplication}</Field>
-              <Field label="Additional requirements">{enquiry.additionalRequirements}</Field>
+              <Field label={enquiryMessageLabel(enquiry.items.length)}>{enquiry.additionalRequirements}</Field>
               <Field label="Consent given">
                 <Timestamp value={enquiry.consentAt} />
               </Field>
             </dl>
           </section>
 
+          {showProductsSection(enquiry.items.length) ? (
           <section aria-labelledby="items-title">
             <SectionTitle id="items-title">Products ({enquiry.items.length})</SectionTitle>
             <TableScroller label="Requested products">
@@ -124,6 +126,7 @@ export default async function AdminEnquiryPage({ params }: PageProps<"/admin/enq
               </table>
             </TableScroller>
           </section>
+          ) : null}
 
           <section aria-labelledby="attachments-title">
             <SectionTitle id="attachments-title">Attachments ({enquiry.attachments.length})</SectionTitle>

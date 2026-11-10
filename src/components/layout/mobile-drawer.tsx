@@ -3,7 +3,7 @@
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useRef } from "react";
-import { contacts, segments } from "@/content/site";
+import { companyNav, segments } from "@/content/site";
 import { EnquiryLink } from "./enquiry-link";
 
 export function MobileDrawer() {
@@ -37,21 +37,36 @@ export function MobileDrawer() {
         <nav aria-label="Mobile" className="mt-6 space-y-8">
           {segments.map((s) => (
             <div key={s.id}>
-              <Link href={s.anchor} onClick={close} className="text-display-md block">
+              <Link href={s.href} onClick={close} className="text-display-md block">
                 {s.label}
               </Link>
               <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
                 {s.items.map((i) => (
-                  <li key={i}>{i}</li>
+                  <li key={i.href + i.label}>
+                    <Link href={i.href} onClick={close} className="inline-block py-1 underline-offset-4 hover:underline">
+                      {i.label}
+                    </Link>
+                  </li>
                 ))}
               </ul>
             </div>
           ))}
+          <ul className="space-y-1 border-t border-charcoal/20 pt-6 text-base">
+            {companyNav
+              .filter((item) => item.available)
+              .map((item) => (
+                <li key={item.href}>
+                  <Link href={item.href} onClick={close} className="inline-block py-1 underline-offset-4 hover:underline">
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+          </ul>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-4 border-t border-charcoal/20 pt-6">
             <EnquiryLink onNavigate={close} className="text-base" />
-            <a href={`mailto:${contacts.sales}`} className="inline-block bg-charcoal px-6 py-3 text-sm text-ivory">
+            <Link href="/contact" onClick={close} className="inline-block bg-charcoal px-6 py-3 text-sm text-ivory">
               Request a consultation
-            </a>
+            </Link>
           </div>
         </nav>
       </dialog>

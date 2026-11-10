@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
+// Relative import: Next loads this file itself, so the "@/" alias is not available here.
+import { redirectRules } from "./src/content/redirects";
 
 const nextConfig: NextConfig = {
+  // Old-site URLs for pages that now exist: one 301 each (src/content/redirects.ts). An explicit
+  // statusCode is used instead of `permanent`, which would answer 308.
+  async redirects() {
+    return redirectRules.map((r) => ({ source: r.source, destination: r.destination, statusCode: 301 }));
+  },
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,

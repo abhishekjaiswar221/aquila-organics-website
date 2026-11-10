@@ -14,5 +14,8 @@ No photographs are shipped yet. Every image slot on the homepage is an `ImageFra
 | EcoVadis badge | Sustainability | Client supplied | **Not shown** | Rating, year and permission |
 | Certificates | Certifications | Existing PDFs/images under `/images/certifications/` | **Not shown** | Issuers, scope, valid dates (Star-K appears expired) |
 | Product datasheets and SDS | Catalogue | 17 PDFs and one SDS on the old site | Not imported | Verification before publishing |
+| Application page imagery (6 fragrance, 5 flavour) | `/fragrances/<slug>`, `/flavours/<slug>` | Licensed stock (ingredients, food materials) or client photos; the incense page may use the five old-site photos once ownership is confirmed | Placeholder (labelled in development) | Photos or approval of stock, per application |
+| About, Innovation and Sustainability imagery | `/about`, `/innovation`, `/sustainability` | None used; these pages are plain and factual | None | Real Aquila site and laboratory photos if the client wants imagery; never stock |
+| Contact map | `/contact` | None | Not built | Confirmed coordinates for both offices before adding a map |
 
 Licence rule for stock: free-commercial licence only (for example Unsplash/Pexels), with the licence and source URL recorded here when an image is added.

@@ -59,7 +59,7 @@ export const segmentBlocks: Block<SegmentData>[] = [
       title: "Fragrances",
       summary:
         "A fragrance library that keeps evolving, created for fine fragrance, personal care, air care, fabric care, home care, incense and bakhoor.",
-      href: "/#fragrances",
+      href: "/fragrances",
     },
   },
   {
@@ -81,7 +81,7 @@ export const segmentBlocks: Block<SegmentData>[] = [
       title: "Flavours",
       summary:
         "A newer business line: flavours for confectionery, bakery, beverages, dairy and savoury foods.",
-      href: "/#flavours",
+      href: "/flavours",
     },
   },
 ];

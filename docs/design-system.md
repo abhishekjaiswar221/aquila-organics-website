@@ -42,6 +42,12 @@ Breakpoints: Tailwind defaults. The header switches to the mobile drawer below `
 - `Eyebrow`, `SectionHeader`, `ImageFrame` (visible "Placeholder: ..." label in development only)
 - Layout: `Header` (contact strip, wordmark, segment disclosure menu), `MobileDrawer` (native `<dialog>`), `Footer`, `SkipLink`
 - Motion: `Reveal` (see below)
+- Page templates (`src/components/pages/`), each taking plain content records and rendering only blocks that exist (hidden blocks never render, empty sections draw nothing):
+  - `SegmentPage` (Fragrances and Flavours overviews: lead, a tile per application, segment notes, consultation link)
+  - `ApplicationPage` (h1, the verified summary, a labelled placeholder image, optional extra sections, related applications as an unheadinged navigation list, consultation link)
+  - `ContentPage` (breadcrumb, h1, lead, ordered sections) and `CertificationsPage` (confirmed certificates only; expired ones under an explicit "Expired certificates" heading, never as current)
+  - `PageSections` (paragraphs, lists, quotes), `Breadcrumbs` (labelled nav, last crumb is the current page) and `JsonLd` (shared safe serializer)
+- Forms (`src/components/forms/`): `form-fields.tsx` holds the field, attachment, honeypot and consent blocks shared by the RFQ form and the contact forms; `ContactForms` is a WAI-ARIA tablist of four independent forms (own submission token and state each)
 
 ## Visual treatments by domain
 
@@ -53,6 +59,10 @@ Breakpoints: Tailwind defaults. The header switches to the mobile drawer below `
 | Manufacturing | Charcoal with a definition list of sites |
 | Sustainability | Deep olive, three plain columns, no badges |
 | Leadership | Narrow single column, no cards |
+| Fragrance application pages | Large italic display headline on the ivory ground, image placeholder on the right, dark pull-quote only where a brief-supplied statement exists |
+| Flavour application pages | Same layout on the cream ground, upright headline |
+| Company pages (About, Innovation, Sustainability, Compliance, Certifications) | Plain factual: breadcrumb, headline, lead, ruled lists; no cards, no decorative imagery |
+| Contact | Verified details beside four tabbed forms; no map |
 
 ## Motion
 
@@ -62,4 +72,4 @@ Breakpoints: Tailwind defaults. The header switches to the mobile drawer below `
 
 ## Content rules
 
-Copy lives in `src/content/`. Each block has a status: `verified`, `brief-supplied`, `needs-client-confirmation`, or `hidden`. Hidden blocks never render. A unit test fails the build if content contains "16+", "since 2010/2012" or "N years". See `docs/content-verification.md`.
+Copy lives in `src/content/`. Each block has a status: `verified`, `brief-supplied`, `needs-client-confirmation`, or `hidden`. Hidden blocks never render. A unit test scans every file under `src/content/` (recursively) and fails the build if it contains "16+", "since 2010/2012", "N years", "best agarbatti", "largest manufacturer" or "state-of-the-art". `npm run content:report` lists every block still awaiting client confirmation. See `docs/content-verification.md`.

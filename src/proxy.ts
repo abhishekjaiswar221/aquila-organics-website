@@ -1,6 +1,7 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { NextResponse, type NextRequest } from "next/server";
 import { adminRedirectTarget, isAdminPath, isPrefetchRequest } from "@/features/admin/proxy-redirect";
+import { isUnknownApplicationPath } from "@/features/pages/application-guard";
 
 const PRODUCT_PREFIX = "/aroma-chemicals/";
 
@@ -25,6 +26,10 @@ const PRODUCT_PREFIX = "/aroma-chemicals/";
  * rewritten to an unmatched path, which Next.js answers with the root
  * not-found page and a 404. The page keeps its own notFound() as a second line
  * of defence. The query module (Prisma) is loaded only in this branch.
+ *
+ * Segment applications (/fragrances/:application, /flavours/:application): the
+ * same problem and the same fix, with a pure check against the fixed slug lists
+ * (no database). An unknown slug is rewritten to the same unmatched path.
  */
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
@@ -40,6 +45,10 @@ export async function proxy(request: NextRequest) {
     // The target is always a relative /admin/login path: resolved against
     // the request URL it can only stay on this origin.
     return target ? NextResponse.redirect(new URL(target, request.url), 307) : NextResponse.next();
+  }
+
+  if (isUnknownApplicationPath(pathname)) {
+    return NextResponse.rewrite(new URL("/_catalogue/not-found", request.url));
   }
 
   if (!pathname.startsWith(PRODUCT_PREFIX)) return NextResponse.next();
@@ -68,6 +77,15 @@ export const config = {
       // two segments). A prefetch only fetches the generic App Shell, so it
       // needs no lookup; the real navigation still gets the 404 check.
       source: "/aroma-chemicals/:slug",
+      missing: [
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "next-router-segment-prefetch" },
+      ],
+    },
+    {
+      // Fragrance and flavour application pages: a slug check only (no database), so
+      // unknown slugs answer a real 404. Prefetches skip it like the other branches.
+      source: "/:segment(fragrances|flavours)/:application",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "next-router-segment-prefetch" },

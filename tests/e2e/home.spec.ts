@@ -46,13 +46,24 @@ test.describe("homepage: chemicals to enquiry", () => {
   test("renders every remaining section in order", async ({ page }) => {
     await page.goto("/");
     const ids = ["aroma-chemicals", "flavours", "manufacturing", "strengths", "leadership", "sustainability", "global-reach", "enquire"];
-    const tops: number[] = [];
-    for (const id of ids) {
-      const el = page.locator(`#${id}`);
-      await expect(el, id).toHaveCount(1);
-      tops.push(await el.evaluate((n) => n.getBoundingClientRect().top + window.scrollY));
-    }
-    expect([...tops].sort((a, b) => a - b)).toEqual(tops);
+    for (const id of ids) await expect(page.locator(`#${id}`), id).toHaveCount(1);
+    // The scroll-reveal wrappers swap their element type once the page hydrates, which re-creates the
+    // sections for a moment. Reading the positions one at a time could land mid-swap (a detached
+    // element reports top 0), so take one atomic snapshot of all eight and wait for the settled
+    // layout. The final state must still contain every section, in order, below the top of the page.
+    await expect
+      .poll(
+        () =>
+          page.evaluate((sectionIds) => {
+            const tops = sectionIds.map((id) => {
+              const n = document.getElementById(id);
+              return n ? n.getBoundingClientRect().top + window.scrollY : -1;
+            });
+            return tops.every((t) => t > 0) && tops.every((t, i) => i === 0 || t >= (tops[i - 1] ?? 0));
+          }, ids),
+        { timeout: 10_000, message: "homepage sections are not all present and in order" },
+      )
+      .toBe(true);
   });
 
   test("lists exactly 14 chemistries", async ({ page }) => {

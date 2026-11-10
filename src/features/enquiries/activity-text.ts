@@ -31,6 +31,11 @@ export function describeActivity(
     case "enquiry.created": {
       const items = count(detail, "items");
       const attachments = count(detail, "attachments");
+      if (field(detail, "source") === "contact-form") {
+        if (attachments === null) return "Message received through the contact form.";
+        const files = attachments ? plural(attachments, "attachment", "attachments") : "no attachments";
+        return `Message received through the contact form, ${files}.`;
+      }
       if (items === null) return "Enquiry received.";
       const files = attachments ? plural(attachments, "attachment", "attachments") : "no attachments";
       return `Enquiry received through the website form: ${plural(items, "product line", "product lines")}, ${files}.`;

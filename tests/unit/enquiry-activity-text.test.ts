@@ -13,6 +13,18 @@ describe("describeActivity", () => {
     expect(describeActivity("enquiry.created", null)).toBe("Enquiry received.");
   });
 
+  it("describes a contact form message (no product lines)", () => {
+    expect(
+      describeActivity("enquiry.created", { source: "contact-form", items: 0, catalogueItems: 0, attachments: 0 }),
+    ).toBe("Message received through the contact form, no attachments.");
+    expect(
+      describeActivity("enquiry.created", { source: "contact-form", items: 0, catalogueItems: 0, attachments: 2 }),
+    ).toBe("Message received through the contact form, 2 attachments.");
+    expect(describeActivity("enquiry.created", { source: "contact-form" })).toBe(
+      "Message received through the contact form.",
+    );
+  });
+
   it("describes email activities without echoing provider errors or addresses", () => {
     expect(describeActivity("email.sent", { kind: "acknowledgement", recipients: 1 })).toBe(
       "Acknowledgement email sent to the buyer.",
