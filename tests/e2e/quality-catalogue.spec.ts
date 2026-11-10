@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { APPLICATION_SLUGS } from "../../src/content/segments";
 import { ARCHIVED, BULK, DRAFT, ETHANOL, MINIMAL, WATER } from "./support/fixtures";
 import { expectAxeClean, expectHeadingOutline, expectNoOverflow } from "./support/quality";
 
@@ -106,9 +107,24 @@ test.describe("quality gates: robots.txt and sitemap.xml", () => {
     expect(res.status()).toBe(200);
     const xml = await res.text();
     const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => new URL(m[1] ?? "").pathname);
-    for (const path of ["/", "/aroma-chemicals", "/privacy"]) expect(locs, path).toContain(path);
-    for (const p of [ETHANOL, WATER, MINIMAL, ...BULK]) expect(locs).toContain(`/aroma-chemicals/${p.slug}`);
-    expect(locs).toHaveLength(3 + 3 + BULK.length);
+    // Exact set: every indexable static page, plus the published fixtures, and nothing else. The
+    // certifications page is absent on purpose (noindex until a certificate is confirmed).
+    const staticPaths = [
+      "/",
+      "/aroma-chemicals",
+      "/privacy",
+      "/fragrances",
+      "/flavours",
+      "/about",
+      "/innovation",
+      "/sustainability",
+      "/sustainability/compliance",
+      ...APPLICATION_SLUGS.fragrances.map((s) => `/fragrances/${s}`),
+      ...APPLICATION_SLUGS.flavours.map((s) => `/flavours/${s}`),
+    ];
+    const productPaths = [ETHANOL, WATER, MINIMAL, ...BULK].map((p) => `/aroma-chemicals/${p.slug}`);
+    expect([...locs].sort()).toEqual([...staticPaths, ...productPaths].sort());
+    expect(locs).not.toContain("/sustainability/certifications");
     expect(xml).not.toContain(DRAFT.slug);
     expect(xml).not.toContain(ARCHIVED.slug);
     for (const loc of locs) {
