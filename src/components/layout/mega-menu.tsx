@@ -51,15 +51,23 @@ export function MegaMenu() {
           {segments.map((s) => (
             <div key={s.id}>
               <Link
-                href={s.anchor}
+                href={s.href}
                 onClick={() => setOpen(false)}
                 className="text-display-md block hover:text-bronze-text"
               >
                 {s.label}
               </Link>
-              <ul className="mt-4 space-y-1.5 text-sm text-muted-foreground">
+              <ul className="mt-4 space-y-1.5 text-sm">
                 {s.items.map((i) => (
-                  <li key={i}>{i}</li>
+                  <li key={i.href + i.label}>
+                    <Link
+                      href={i.href}
+                      onClick={() => setOpen(false)}
+                      className="inline-block py-0.5 text-muted-foreground underline-offset-4 hover:text-charcoal hover:underline"
+                    >
+                      {i.label}
+                    </Link>
+                  </li>
                 ))}
               </ul>
             </div>

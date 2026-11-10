@@ -28,3 +28,13 @@ export const redirectTable: RedirectRule[] = [
   { source: "/about/certification", destination: "/sustainability/certifications" },
   { source: "/contactus", destination: "/contact" },
 ];
+
+/**
+ * The old site was a Joomla install that served every page both at the clean URL and under
+ * /index.php/..., so each rule also answers its /index.php variant with the same destination.
+ * One hop each: no destination is itself a source (guarded by tests/unit/redirects.test.ts).
+ */
+export const redirectRules: RedirectRule[] = [
+  ...redirectTable,
+  ...redirectTable.map((r) => ({ source: `/index.php${r.source}`, destination: r.destination })),
+];

@@ -13,6 +13,7 @@ export type SitemapOptions = {
 function companyEntries(baseUrl: string, options: SitemapOptions): MetadataRoute.Sitemap {
   const paths = ["/about", "/innovation", "/sustainability", "/sustainability/compliance"];
   if (options.certificationsIndexable) paths.push("/sustainability/certifications");
+  paths.push("/contact");
   return paths.map((path) => ({
     url: absoluteUrl(baseUrl, path),
     changeFrequency: "monthly" as const,

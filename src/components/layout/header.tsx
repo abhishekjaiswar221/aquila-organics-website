@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { company, contacts } from "@/content/site";
+import { company, contacts, headerNav } from "@/content/site";
 import { EnquiryLink } from "./enquiry-link";
 import { MegaMenu } from "./mega-menu";
 import { MobileDrawer } from "./mobile-drawer";
@@ -26,13 +26,20 @@ export function Header() {
         </Link>
         <nav aria-label="Primary" className="hidden items-center gap-10 lg:flex">
           <MegaMenu />
+          {headerNav
+            .filter((item) => item.available)
+            .map((item) => (
+              <Link key={item.href} href={item.href} className="text-sm font-medium tracking-wide">
+                {item.label}
+              </Link>
+            ))}
           <EnquiryLink />
-          <a
-            href={`mailto:${contacts.sales}`}
+          <Link
+            href="/contact"
             className="bg-charcoal px-6 py-3 text-sm font-medium tracking-wide text-ivory transition-colors hover:bg-bronze-text"
           >
             Request a consultation
-          </a>
+          </Link>
         </nav>
         <MobileDrawer />
       </div>

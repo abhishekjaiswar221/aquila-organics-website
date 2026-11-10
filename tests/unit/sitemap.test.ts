@@ -28,6 +28,7 @@ describe("buildSitemap", () => {
       "https://example.test/innovation",
       "https://example.test/sustainability",
       "https://example.test/sustainability/compliance",
+      "https://example.test/contact",
       "https://example.test/aroma-chemicals/test-ethanol",
       "https://example.test/aroma-chemicals/test-water",
       "https://example.test/privacy",
