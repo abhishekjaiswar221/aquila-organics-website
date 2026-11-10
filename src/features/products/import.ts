@@ -117,7 +117,7 @@ async function importOne(db: PrismaClient, data: ProductInput): Promise<"created
     if (data.applications) {
       await tx.productApplication.deleteMany({ where: { productId } });
       await tx.productApplication.createMany({
-        data: data.applications.map((name) => ({ productId, name })),
+        data: data.applications.map((name, sortOrder) => ({ productId, name, sortOrder })),
       });
     }
     return existing ? "updated" : "created";

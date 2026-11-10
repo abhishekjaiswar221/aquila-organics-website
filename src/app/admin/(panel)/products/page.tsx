@@ -46,6 +46,12 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
         {filtered ? " match" : " in the catalogue (all statuses)"}
       </PageHeader>
 
+      <p className="mt-4">
+        <Link href="/admin/products/new" className={buttonCls}>
+          New product
+        </Link>
+      </p>
+
       <form method="get" action={PATH} className="mt-6 grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto] sm:items-end">
         <div className="min-w-0">
           <label htmlFor="product-q" className={labelCls}>
@@ -130,6 +136,9 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
                     {p.sourceNote ? <span title={p.sourceNote}>{truncate(p.sourceNote, NOTE_LENGTH)}</span> : "\u{2014}"}
                   </td>
                   <td className={tdCls}>
+                    <Link href={`/admin/products/${p.id}/edit`} className={`${linkCls} mb-2 inline-block`}>
+                      Edit<span className="sr-only"> {p.name || p.slug}</span>
+                    </Link>
                     <ProductActions
                       productId={p.id}
                       productName={p.name}
