@@ -1,33 +1,79 @@
 import { describe, expect, it } from "vitest";
-import { ADMIN_ROLES, ROLES, can, decideAccess, type AdminAction } from "@/lib/access";
+import { ADMIN_ROLES, ROLES, adminLinksFor, can, decideAccess, rolesFor, type AdminAction } from "@/lib/access";
 
-const ACTIONS: AdminAction[] = ["products.publish", "enquiries.view", "enquiries.update"];
+const ACTIONS: AdminAction[] = [
+  "enquiries.view",
+  "enquiries.update",
+  "products.edit",
+  "products.publish",
+  "products.verify",
+  "documents.manage",
+  "settings.edit",
+  "users.manage",
+  "audit.view",
+];
 
-const expected: Record<(typeof ROLES)[number], boolean> = {
-  SUPER_ADMIN: true,
-  ADMINISTRATOR: false,
-  SALES_MANAGER: true,
-  SALES_EXECUTIVE: false,
-  CONTENT_EDITOR: false,
-  HR_MANAGER: false,
+// Spec section 2, cell by cell. Order of columns: SUPER_ADMIN, ADMINISTRATOR, SALES_MANAGER, CONTENT_EDITOR.
+const MATRIX: Record<AdminAction, [boolean, boolean, boolean, boolean]> = {
+  "enquiries.view": [true, false, true, false],
+  "enquiries.update": [true, false, true, false],
+  "products.edit": [true, true, true, true],
+  "products.publish": [true, true, true, false],
+  "products.verify": [true, false, false, false],
+  "documents.manage": [true, true, false, true],
+  "settings.edit": [true, true, false, false],
+  "users.manage": [true, false, false, false],
+  "audit.view": [true, false, false, false],
 };
+const COLUMNS = ["SUPER_ADMIN", "ADMINISTRATOR", "SALES_MANAGER", "CONTENT_EDITOR"] as const;
 
 describe("can", () => {
   it("covers all six roles", () => {
-    expect([...ROLES].sort()).toEqual(Object.keys(expected).sort());
+    expect([...ROLES].sort()).toEqual(
+      ["SUPER_ADMIN", "ADMINISTRATOR", "SALES_MANAGER", "SALES_EXECUTIVE", "CONTENT_EDITOR", "HR_MANAGER"].sort(),
+    );
   });
 
-  for (const role of ROLES) {
-    for (const action of ACTIONS) {
-      it(`${role} ${expected[role] ? "may" : "may not"} ${action}`, () => {
-        expect(can(role, action)).toBe(expected[role]);
+  for (const action of ACTIONS) {
+    COLUMNS.forEach((role, i) => {
+      const allowed = MATRIX[action][i];
+      it(`${role} ${allowed ? "may" : "may not"} ${action}`, () => {
+        expect(can(role, action)).toBe(allowed);
       });
-    }
+    });
   }
+
+  it.each(["HR_MANAGER", "SALES_EXECUTIVE"] as const)("%s may do nothing yet", (role) => {
+    for (const action of ACTIONS) expect(can(role, action), action).toBe(false);
+  });
 
   it("denies unknown roles and actions", () => {
     expect(can("ROOT" as never, "enquiries.view")).toBe(false);
     expect(can("SUPER_ADMIN", "users.delete" as never)).toBe(false);
+    expect(rolesFor("users.delete" as never)).toEqual([]);
+  });
+
+  it("rolesFor lists exactly the roles that can", () => {
+    for (const action of ACTIONS) {
+      expect([...rolesFor(action)].sort(), action).toEqual(ROLES.filter((r) => can(r, action)).sort());
+    }
+  });
+});
+
+describe("adminLinksFor", () => {
+  const labels = (role: (typeof ROLES)[number]) => adminLinksFor(role).map((l) => l.label);
+
+  it("gives a content editor only Products", () => {
+    expect(labels("CONTENT_EDITOR")).toEqual(["Products"]);
+  });
+
+  it("gives sales managers and super admins Products and Enquiries", () => {
+    expect(labels("SALES_MANAGER")).toEqual(["Products", "Enquiries"]);
+    expect(labels("SUPER_ADMIN")).toEqual(["Products", "Enquiries"]);
+  });
+
+  it("gives non-admin roles no links", () => {
+    expect(labels("HR_MANAGER")).toEqual([]);
   });
 });
 
@@ -36,10 +82,8 @@ describe("decideAccess", () => {
     expect(decideAccess(null, ADMIN_ROLES)).toEqual({ kind: "redirect" });
   });
 
-  it("forbids a signed-in user whose role is not allowed", () => {
-    expect(decideAccess({ userId: "u1", role: "CONTENT_EDITOR" }, ADMIN_ROLES)).toEqual({
-      kind: "forbidden",
-    });
+  it.each(["HR_MANAGER", "SALES_EXECUTIVE"])("forbids %s, which has no admin access yet", (role) => {
+    expect(decideAccess({ userId: "u1", role }, ADMIN_ROLES)).toEqual({ kind: "forbidden" });
   });
 
   it("forbids a role outside the narrowed allow-list", () => {
@@ -57,11 +101,10 @@ describe("decideAccess", () => {
     expect(decideAccess({ userId: "u1", role: "SUPER_ADMIN" }, [])).toEqual({ kind: "forbidden" });
   });
 
-  it.each(["SUPER_ADMIN", "SALES_MANAGER"] as const)("allows %s by default", (role) => {
-    expect(decideAccess({ userId: "u1", role }, ADMIN_ROLES)).toEqual({
-      kind: "allow",
-      userId: "u1",
-      role,
-    });
-  });
+  it.each(["SUPER_ADMIN", "ADMINISTRATOR", "SALES_MANAGER", "CONTENT_EDITOR"] as const)(
+    "allows %s by default",
+    (role) => {
+      expect(decideAccess({ userId: "u1", role }, ADMIN_ROLES)).toEqual({ kind: "allow", userId: "u1", role });
+    },
+  );
 });

@@ -1,7 +1,7 @@
 import { attachmentDownloadHeaders } from "@/features/enquiries/attachment-download";
 import { getAttachmentFile } from "@/features/enquiries/queries";
 import { db } from "@/lib/db";
-import { getAdminAccess } from "@/lib/permissions";
+import { getAdminAccess, rolesFor } from "@/lib/permissions";
 import { getStorage } from "@/lib/storage";
 
 /*
@@ -30,7 +30,7 @@ function plain(status: 404 | 503, text: string): Response {
 
 /** The requireRole() decision: a 401/403 response, or the permitted user. */
 async function authorise(request: Request): Promise<Response | { userId: string }> {
-  const access = await getAdminAccess(request.headers);
+  const access = await getAdminAccess(request.headers, rolesFor("enquiries.view"));
   if (access.kind === "redirect") return empty(401);
   if (access.kind === "forbidden") return empty(403);
   return { userId: access.userId };

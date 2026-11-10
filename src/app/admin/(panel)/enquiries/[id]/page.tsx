@@ -20,7 +20,7 @@ import { enquiryMessageLabel, showProductsSection } from "@/features/enquiries/d
 import { getEnquiry } from "@/features/enquiries/queries";
 import { BUSINESS_SEGMENT_LABELS, BUSINESS_SEGMENTS, UNIT_LABELS } from "@/features/enquiries/schema";
 import { STATUS_LABELS, TYPE_LABELS } from "@/features/enquiries/status";
-import { requireRole } from "@/lib/permissions";
+import { requireAction } from "@/lib/permissions";
 
 export const instant = false;
 // Static title: the reference is not put in metadata, which is resolved alongside the auth check.
@@ -43,7 +43,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 export default async function AdminEnquiryPage({ params }: PageProps<"/admin/enquiries/[id]">) {
-  await requireRole();
+  await requireAction("enquiries.view");
   const enquiry = await getEnquiry((await params).id);
   if (!enquiry) notFound();
   const attachmentNames = new Map(enquiry.attachments.map((a) => [a.id, a.filename]));

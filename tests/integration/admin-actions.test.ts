@@ -31,7 +31,12 @@ const { GET: downloadAttachment, HEAD: headAttachment } = await import("@/app/ap
 
 type Role = "SUPER_ADMIN" | "ADMINISTRATOR" | "SALES_MANAGER" | "SALES_EXECUTIVE" | "CONTENT_EDITOR" | "HR_MANAGER";
 const ROLES: Role[] = ["SUPER_ADMIN", "ADMINISTRATOR", "SALES_MANAGER", "SALES_EXECUTIVE", "CONTENT_EDITOR", "HR_MANAGER"];
+// No admin access at all, or no access to the enquiries screens.
 const DENIED: Role[] = ["CONTENT_EDITOR", "HR_MANAGER", "SALES_EXECUTIVE", "ADMINISTRATOR"];
+// Roles without products.publish (ADMINISTRATOR may publish).
+const DENIED_PUBLISH: Role[] = ["CONTENT_EDITOR", "HR_MANAGER", "SALES_EXECUTIVE"];
+// Roles that never enter the admin; admin roles other than SUPER_ADMIN get a soft "Not permitted".
+const NO_ADMIN: Role[] = ["HR_MANAGER", "SALES_EXECUTIVE"];
 
 const cookies = new Map<Role, string>();
 const userIds = new Map<Role, string>();
@@ -143,7 +148,7 @@ describe("setProductStatus", () => {
     expect((await db.product.findUniqueOrThrow({ where: { id: p.id } })).status).toBe("DRAFT");
   });
 
-  it.each(DENIED)("refuses a %s session with a 403 and changes nothing", async (role) => {
+  it.each(DENIED_PUBLISH)("refuses a %s session with a 403 and changes nothing", async (role) => {
     const p = await makeProduct("test-a", { verified: true });
     signedInAs(role);
     await expectForbidden(() => setProductStatus(p.id, "PUBLISHED"));
@@ -256,10 +261,18 @@ describe("setProductVerified", () => {
     expect(audit).toContain(userIds.get("SALES_MANAGER"));
   });
 
-  it.each(DENIED)("refuses a %s session with a 403", async (role) => {
+  it.each(NO_ADMIN)("refuses a %s session with a 403", async (role) => {
     const p = await makeProduct("test-v");
     signedInAs(role);
     await expectForbidden(() => setProductVerified(p.id, true));
+    expect((await db.product.findUniqueOrThrow({ where: { id: p.id } })).verified).toBe(false);
+  });
+
+  it.each(["ADMINISTRATOR", "CONTENT_EDITOR"] as const)("refuses %s softly: not permitted, nothing changes", async (role) => {
+    const p = await makeProduct("test-v");
+    signedInAs(role);
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    expect(await setProductVerified(p.id, true)).toEqual({ ok: false, error: "Not permitted" });
     expect((await db.product.findUniqueOrThrow({ where: { id: p.id } })).verified).toBe(false);
   });
 

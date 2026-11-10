@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import type { EnquiryStatus } from "@/generated/prisma/enums";
 import { STATUS_LABELS, isEnquiryStatus } from "@/features/enquiries/status";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/permissions";
+import { requireAction } from "@/lib/permissions";
 import { normalizeUuid } from "@/lib/uuid";
 
 /*
@@ -26,7 +26,7 @@ class StatusConflict extends Error {}
  * again is a no-op that writes nothing.
  */
 export async function setEnquiryStatus(enquiryId: string, status: EnquiryStatus): Promise<ActionResult> {
-  const actor = await requireRole();
+  const actor = await requireAction("enquiries.update");
   const id = normalizeUuid(enquiryId);
   if (!id) return { ok: false, error: "That enquiry reference is not valid." };
   if (!isEnquiryStatus(status)) return { ok: false, error: "That status is not valid." };
@@ -53,7 +53,7 @@ export async function setEnquiryStatus(enquiryId: string, status: EnquiryStatus)
 
 /** `useActionState` form wrapper for setEnquiryStatus (fields: enquiryId, status). */
 export async function submitEnquiryStatus(_prev: EnquiryFormState, formData: FormData): Promise<EnquiryFormState> {
-  await requireRole();
+  await requireAction("enquiries.update");
   const status = formData.get("status");
   if (!isEnquiryStatus(status)) return { ok: false, message: "Choose a status." };
   const result = await setEnquiryStatus(String(formData.get("enquiryId") ?? ""), status);

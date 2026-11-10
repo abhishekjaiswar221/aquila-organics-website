@@ -14,17 +14,39 @@ export const ROLES = [
   "HR_MANAGER",
 ] as const satisfies readonly Role[];
 
-/** Roles allowed into the admin in this sub-project. */
-export type AdminRole = "SUPER_ADMIN" | "SALES_MANAGER";
-export const ADMIN_ROLES: readonly AdminRole[] = ["SUPER_ADMIN", "SALES_MANAGER"];
+/** Roles allowed into the admin. SALES_EXECUTIVE and HR_MANAGER stay out until their own sub-projects. */
+export type AdminRole = "SUPER_ADMIN" | "ADMINISTRATOR" | "SALES_MANAGER" | "CONTENT_EDITOR";
+export const ADMIN_ROLES: readonly AdminRole[] = ["SUPER_ADMIN", "ADMINISTRATOR", "SALES_MANAGER", "CONTENT_EDITOR"];
 
-export type AdminAction = "products.publish" | "enquiries.view" | "enquiries.update";
+export type AdminAction =
+  | "enquiries.view"
+  | "enquiries.update"
+  | "products.edit"
+  | "products.publish"
+  | "products.verify"
+  | "documents.manage"
+  | "settings.edit"
+  | "users.manage"
+  | "audit.view";
 
+/** The one place roles are listed per action (spec section 2). */
 const PERMISSIONS: Record<AdminAction, readonly Role[]> = {
-  "products.publish": ADMIN_ROLES,
-  "enquiries.view": ADMIN_ROLES,
-  "enquiries.update": ADMIN_ROLES,
+  "enquiries.view": ["SUPER_ADMIN", "SALES_MANAGER"],
+  "enquiries.update": ["SUPER_ADMIN", "SALES_MANAGER"],
+  "products.edit": ["SUPER_ADMIN", "ADMINISTRATOR", "SALES_MANAGER", "CONTENT_EDITOR"],
+  "products.publish": ["SUPER_ADMIN", "ADMINISTRATOR", "SALES_MANAGER"],
+  "products.verify": ["SUPER_ADMIN"],
+  "documents.manage": ["SUPER_ADMIN", "ADMINISTRATOR", "CONTENT_EDITOR"],
+  "settings.edit": ["SUPER_ADMIN", "ADMINISTRATOR"],
+  "users.manage": ["SUPER_ADMIN"],
+  "audit.view": ["SUPER_ADMIN"],
 };
+
+/** The admin roles allowed to perform an action (empty for an unknown action). */
+export function rolesFor(action: AdminAction): readonly AdminRole[] {
+  if (!Object.hasOwn(PERMISSIONS, action)) return [];
+  return PERMISSIONS[action] as readonly AdminRole[];
+}
 
 export function isRole(value: unknown): value is Role {
   return typeof value === "string" && (ROLES as readonly string[]).includes(value);
@@ -33,6 +55,17 @@ export function isRole(value: unknown): value is Role {
 export function can(role: Role, action: AdminAction): boolean {
   if (!Object.hasOwn(PERMISSIONS, action)) return false;
   return PERMISSIONS[action].includes(role);
+}
+
+// Each admin page adds its link here when it ships.
+const ADMIN_LINKS: { href: string; label: string; action: AdminAction }[] = [
+  { href: "/admin/products", label: "Products", action: "products.edit" },
+  { href: "/admin/enquiries", label: "Enquiries", action: "enquiries.view" },
+];
+
+/** The admin navigation a role may see (pure; the pages still authorise themselves). */
+export function adminLinksFor(role: Role): { href: string; label: string }[] {
+  return ADMIN_LINKS.filter((l) => can(role, l.action)).map(({ href, label }) => ({ href, label }));
 }
 
 export type SessionInfo = { userId: string; role: unknown };

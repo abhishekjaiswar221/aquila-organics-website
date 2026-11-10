@@ -1,10 +1,10 @@
 import { headers } from "next/headers";
 import { forbidden, redirect } from "next/navigation";
-import { ADMIN_ROLES, decideAccess, type AccessDecision, type AdminRole, type Role } from "@/lib/access";
+import { ADMIN_ROLES, decideAccess, rolesFor, type AccessDecision, type AdminAction, type AdminRole, type Role } from "@/lib/access";
 import { auth } from "@/lib/auth";
 import { ADMIN_LOGIN_PATH } from "@/features/admin/login";
 
-export { ADMIN_ROLES, can, type AdminAction, type AdminRole, type Role } from "@/lib/access";
+export { ADMIN_ROLES, adminLinksFor, can, rolesFor, type AdminAction, type AdminRole, type Role } from "@/lib/access";
 export { ADMIN_LOGIN_PATH };
 
 /**
@@ -48,4 +48,13 @@ export async function requireRole(
   if (decision.kind === "redirect") redirect(ADMIN_LOGIN_PATH);
   if (decision.kind === "forbidden") forbidden();
   return { userId: decision.userId, role: decision.role };
+}
+
+/**
+ * requireRole() for one named action: the roles come from the permission table
+ * in src/lib/access.ts, so a page or Server Action states what it does, not who
+ * may. Same redirect/forbidden interrupts; call it first, outside any try/catch.
+ */
+export async function requireAction(action: AdminAction): Promise<{ userId: string; role: Role }> {
+  return requireRole([...rolesFor(action)]);
 }

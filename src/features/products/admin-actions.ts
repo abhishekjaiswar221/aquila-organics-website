@@ -6,7 +6,7 @@ import { auditLog } from "@/features/admin/audit";
 import { isProductStatus } from "@/features/products/admin-queries";
 import { PUBLISH_REQUIREMENTS_ERROR, isPublishCheckViolation, publishBlockReason } from "@/features/products/publish-guard";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/permissions";
+import { can, requireAction, requireRole } from "@/lib/permissions";
 import { normalizeUuid } from "@/lib/uuid";
 
 /*
@@ -37,7 +37,7 @@ export async function setProductStatus(
   productId: string,
   status: "PUBLISHED" | "DRAFT" | "ARCHIVED",
 ): Promise<ActionResult> {
-  const actor = await requireRole();
+  const actor = await requireAction("products.publish");
   const id = normalizeUuid(productId);
   if (!id) return { ok: false, error: INVALID_PRODUCT };
   if (!isProductStatus(status)) return { ok: false, error: INVALID_STATUS };
@@ -91,7 +91,7 @@ export async function setProductStatus(
 export async function setProductVerified(productId: string, verified: boolean): Promise<ActionResult> {
   const actor = await requireRole();
   const id = normalizeUuid(productId);
-  if (actor.role !== "SUPER_ADMIN") {
+  if (!can(actor.role, "products.verify")) {
     auditLog("product.verified", {
       actorId: actor.userId,
       actorRole: actor.role,
@@ -137,7 +137,7 @@ const STATUS_DONE: Record<ProductStatus, string> = {
 
 /** `useActionState` form wrapper for setProductStatus (fields: productId, status). */
 export async function submitProductStatus(_prev: ProductFormState, formData: FormData): Promise<ProductFormState> {
-  await requireRole();
+  await requireAction("products.publish");
   const status = formData.get("status");
   if (!isProductStatus(status)) return { ok: false, message: INVALID_STATUS };
   const result = await setProductStatus(String(formData.get("productId") ?? ""), status);

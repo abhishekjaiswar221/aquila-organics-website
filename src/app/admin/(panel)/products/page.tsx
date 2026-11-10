@@ -15,7 +15,7 @@ import {
 import { adminMetadata } from "@/features/admin/metadata";
 import { firstParam, listHref, pageParam } from "@/features/admin/search-params";
 import { PRODUCT_STATUSES, isProductStatus, listAdminProducts } from "@/features/products/admin-queries";
-import { requireRole } from "@/lib/permissions";
+import { can, requireAction } from "@/lib/permissions";
 
 // Per request (session + database), no `use cache`: a change shows at once.
 export const instant = false;
@@ -30,13 +30,13 @@ function truncate(text: string, max: number): string {
 }
 
 export default async function AdminProductsPage({ searchParams }: PageProps<"/admin/products">) {
-  const { role } = await requireRole();
+  const { role } = await requireAction("products.edit");
   const sp = await searchParams;
   const q = firstParam(sp.q).trim();
   const rawStatus = firstParam(sp.status);
   const status = isProductStatus(rawStatus) ? rawStatus : undefined;
   const result = await listAdminProducts({ q: q || undefined, status, page: pageParam(sp.page) });
-  const canVerify = role === "SUPER_ADMIN";
+  const canVerify = can(role, "products.verify");
   const filtered = Boolean(q || status);
 
   return (

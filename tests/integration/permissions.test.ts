@@ -15,7 +15,7 @@ vi.mock("next/headers", async (importOriginal) => ({
 
 import { auth } from "@/lib/auth";
 import { createCredentialUser, seedAdmin } from "@/lib/admin-seed";
-import { requireRole } from "@/lib/permissions";
+import { requireAction, requireRole } from "@/lib/permissions";
 
 const execFileAsync = promisify(execFile);
 const root = path.resolve(__dirname, "../..");
@@ -203,12 +203,15 @@ describe("public sign-up and role input", () => {
   });
 });
 
-describe("requireRole", () => {
+describe("requireRole and requireAction", () => {
+  const ROLE_USERS = ["SUPER_ADMIN", "ADMINISTRATOR", "SALES_MANAGER", "CONTENT_EDITOR", "HR_MANAGER"] as const;
+  type TestRole = (typeof ROLE_USERS)[number];
+
   beforeAll(async () => {
     // Next.js sets this when experimental.authInterrupts is on (next.config.ts).
     process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS = "true";
     await resetDb();
-    for (const role of ["SUPER_ADMIN", "SALES_MANAGER", "CONTENT_EDITOR"] as const) {
+    for (const role of ROLE_USERS) {
       await createCredentialUser({
         email: `${role.toLowerCase()}@example.test`,
         password: `${role.toLowerCase()}-password`,
@@ -221,7 +224,7 @@ describe("requireRole", () => {
     requestHeaders.current = new Headers();
   });
 
-  async function signInAs(role: "SUPER_ADMIN" | "SALES_MANAGER" | "CONTENT_EDITOR") {
+  async function signInAs(role: TestRole) {
     requestHeaders.current = await sessionHeadersFor(
       `${role.toLowerCase()}@example.test`,
       `${role.toLowerCase()}-password`,
@@ -239,13 +242,13 @@ describe("requireRole", () => {
     expect(digestOf(error)).toMatch(/^NEXT_REDIRECT;replace;\/admin\/login;/);
   });
 
-  it("rejects a CONTENT_EDITOR session with a 403", async () => {
-    await signInAs("CONTENT_EDITOR");
+  it("rejects an HR_MANAGER session with a 403 (no admin access yet)", async () => {
+    await signInAs("HR_MANAGER");
     const error = await requireRole().catch((e: unknown) => e);
     expect(digestOf(error)).toBe("NEXT_HTTP_ERROR_FALLBACK;403");
   });
 
-  it.each(["SUPER_ADMIN", "SALES_MANAGER"] as const)("allows %s", async (role) => {
+  it.each(["SUPER_ADMIN", "ADMINISTRATOR", "SALES_MANAGER", "CONTENT_EDITOR"] as const)("allows %s", async (role) => {
     await signInAs(role);
     const result = await requireRole();
     const user = await db.user.findUniqueOrThrow({ where: { email: `${role.toLowerCase()}@example.test` } });
@@ -256,5 +259,26 @@ describe("requireRole", () => {
     await signInAs("SALES_MANAGER");
     const error = await requireRole(["SUPER_ADMIN"]).catch((e: unknown) => e);
     expect(digestOf(error)).toBe("NEXT_HTTP_ERROR_FALLBACK;403");
+  });
+
+  // The matrix holds through real sessions: a sample of actions, allowed and denied.
+  it.each([
+    ["CONTENT_EDITOR", "products.publish", false],
+    ["CONTENT_EDITOR", "products.edit", true],
+    ["CONTENT_EDITOR", "users.manage", false],
+    ["SALES_MANAGER", "users.manage", false],
+    ["SALES_MANAGER", "products.publish", true],
+    ["ADMINISTRATOR", "products.verify", false],
+    ["ADMINISTRATOR", "settings.edit", true],
+    ["SUPER_ADMIN", "audit.view", true],
+    ["HR_MANAGER", "products.edit", false],
+  ] as const)("requireAction: %s / %s -> allowed=%s", async (role, action, allowed) => {
+    await signInAs(role);
+    if (allowed) {
+      await expect(requireAction(action)).resolves.toMatchObject({ role });
+    } else {
+      const error = await requireAction(action).catch((e: unknown) => e);
+      expect(digestOf(error)).toBe("NEXT_HTTP_ERROR_FALLBACK;403");
+    }
   });
 });

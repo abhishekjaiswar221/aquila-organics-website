@@ -4,7 +4,7 @@ import { AdminNav } from "@/components/admin/admin-nav";
 import { SignOutButton } from "@/components/admin/sign-out-button";
 import { SkipLink } from "@/components/layout/skip-link";
 import { ADMIN_ROBOTS } from "@/features/admin/metadata";
-import { requireAdminUser } from "@/lib/permissions";
+import { adminLinksFor, requireAdminUser } from "@/lib/permissions";
 
 /*
  * Admin shell. It checks the session itself (requireAdminUser: same decision
@@ -19,6 +19,8 @@ export const metadata: Metadata = { title: { absolute: "Admin" }, robots: ADMIN_
 
 const ROLE_LABELS: Record<string, string> = {
   SUPER_ADMIN: "Super admin",
+  ADMINISTRATOR: "Administrator",
+  CONTENT_EDITOR: "Content editor",
   SALES_MANAGER: "Sales manager",
 };
 
@@ -32,7 +34,7 @@ export default async function AdminPanelLayout({ children }: LayoutProps<"/admin
           <Link href="/admin/products" className="font-mono text-xs uppercase tracking-[0.18em] text-ivory">
             Aquila Organics <span className="text-warm-grey">/ Admin</span>
           </Link>
-          <AdminNav />
+          <AdminNav links={adminLinksFor(user.role)} />
           <div className="ml-auto flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-sm">
             <p className="min-w-0 text-warm-grey">
               <span className="sr-only">Signed in as </span>

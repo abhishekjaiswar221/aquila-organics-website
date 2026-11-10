@@ -16,7 +16,7 @@ import { adminMetadata } from "@/features/admin/metadata";
 import { firstParam, listHref, pageParam } from "@/features/admin/search-params";
 import { listEnquiries, missingRecipientTypes } from "@/features/enquiries/queries";
 import { ENQUIRY_STATUSES, ENQUIRY_TYPES, STATUS_LABELS, TYPE_LABELS, isEnquiryStatus } from "@/features/enquiries/status";
-import { requireRole } from "@/lib/permissions";
+import { requireAction } from "@/lib/permissions";
 
 export const instant = false;
 export const metadata = adminMetadata("Enquiries");
@@ -24,7 +24,7 @@ export const metadata = adminMetadata("Enquiries");
 const PATH = "/admin/enquiries";
 
 export default async function AdminEnquiriesPage({ searchParams }: PageProps<"/admin/enquiries">) {
-  await requireRole();
+  await requireAction("enquiries.view");
   const sp = await searchParams;
   const q = firstParam(sp.q).trim();
   const rawStatus = firstParam(sp.status);
