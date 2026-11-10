@@ -90,6 +90,17 @@ export function findApplication(segmentId: SegmentId, slug: string): Application
   return segment.applications.find((a) => a.slug === slug);
 }
 
+const CONSULTATION_TYPE: Record<SegmentId, "FRAGRANCES" | "FLAVOURS"> = {
+  fragrances: "FRAGRANCES",
+  flavours: "FLAVOURS",
+};
+
+/** Deep link into the Contact page's matching form, optionally with the application preselected. */
+export function consultationHref(segmentId: SegmentId, applicationSlug?: string): string {
+  const base = `/contact?type=${CONSULTATION_TYPE[segmentId]}`;
+  return applicationSlug ? `${base}&application=${applicationSlug}` : base;
+}
+
 export function applicationPath(segmentId: SegmentId, slug: string): string {
   return `${segments[segmentId].path}/${slug}`;
 }
