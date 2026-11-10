@@ -60,8 +60,17 @@ export async function proxy(request: NextRequest) {
   } catch {
     slug = "";
   }
-  const { isPublishedSlug } = await import("@/features/products/queries");
-  if (slug && (await isPublishedSlug(slug))) return NextResponse.next();
+  if (!slug) return NextResponse.rewrite(new URL("/_catalogue/not-found", request.url));
+  try {
+    const { isPublishedSlug } = await import("@/features/products/queries");
+    if (await isPublishedSlug(slug)) return NextResponse.next();
+  } catch (err) {
+    // Database down: fail open rather than 500 every product URL. The page runs its
+    // own notFound() check, so an unpublished slug is still never shown (it just
+    // answers 200 with the not-found page instead of a real 404 until the lookup recovers).
+    console.error("[proxy] product slug lookup failed:", err instanceof Error ? err.name : "unknown");
+    return NextResponse.next();
+  }
   return NextResponse.rewrite(new URL("/_catalogue/not-found", request.url));
 }
 

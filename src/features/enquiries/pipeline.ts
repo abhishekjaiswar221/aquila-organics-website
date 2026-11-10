@@ -464,7 +464,20 @@ export type Notification = {
   internal: RenderedEmail;
 };
 
+/**
+ * The two emails are independent, so they run side by side: a slow or timed-out
+ * acknowledgement no longer delays the internal notification (each has its own 8s
+ * timeout). Each step logs its own failures and neither throws.
+ */
 async function notify(enquiry: { id: string; reference: string }, n: Notification, tag: LogTag): Promise<void> {
+  await Promise.all([sendAcknowledgement(enquiry, n, tag), sendInternal(enquiry, n, tag)]);
+}
+
+async function sendAcknowledgement(
+  enquiry: { id: string; reference: string },
+  n: Notification,
+  tag: LogTag,
+): Promise<void> {
   // Per-recipient cap first. If the limiter itself fails, err on the side of
   // not sending (the enquiry is stored either way).
   let mayAcknowledge = false;
@@ -481,7 +494,13 @@ async function notify(enquiry: { id: string; reference: string }, n: Notificatio
     console.warn(`[${tag}] acknowledgement skipped for ${enquiry.reference}: ${skipReason}`);
     await recordActivity(enquiry.id, "email.skipped", { reason: skipReason }, tag);
   }
+}
 
+async function sendInternal(
+  enquiry: { id: string; reference: string },
+  n: Notification,
+  tag: LogTag,
+): Promise<void> {
   let recipients: string[] = [];
   try {
     recipients = await recipientsFor(n.type);
