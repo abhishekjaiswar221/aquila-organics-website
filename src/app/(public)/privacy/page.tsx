@@ -81,8 +81,10 @@ export default function PrivacyPage() {
             a one-way code derived from that address; this count does not contain the address itself.
           </p>
           <p>
-            Careers and contact forms will be added to this website later. They will collect only the information
-            shown on each form, and this notice will be updated before they go live.
+            The contact forms collect the same details as the quotation request (name, company, email, telephone
+            and country) plus the message you write and any files you attach, and are handled in the same way,
+            including the limits above. A careers form will be added later; this notice will be updated before it
+            goes live.
           </p>
         </Section>
 

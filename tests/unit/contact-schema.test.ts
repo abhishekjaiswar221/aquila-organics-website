@@ -4,13 +4,13 @@ import {
   CONTACT_MESSAGE_MIN,
   CONTACT_MESSAGE_RAW_MAX,
   CONTACT_TYPES,
-  contactApplication,
   contactBusinessSegment,
   contactFromFormData,
   contactSchema,
   contactToFormData,
   type ContactInput,
 } from "@/features/contact/schema";
+import { contactApplication } from "@/features/contact/applications";
 import { buildContactFormData, pristineContactValues, type ContactFormValues } from "@/features/contact/form-state";
 import { TEXT_LIMITS } from "@/features/enquiries/schema";
 

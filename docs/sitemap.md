@@ -1,6 +1,6 @@
 # Sitemap and URL Mapping
 
-Target information architecture, with the legacy URL each page replaces and the sub-project that delivers it. Redirect rules are finalised in sub-project 6 (`docs/url-migration.md`). Pages not yet built are not linked from the site.
+Target information architecture, with the legacy URL each page replaces and the sub-project that delivers it. Redirect rules for the delivered pages are in `docs/url-migration.md`; the rest are finalised in the launch sub-project (`docs/url-migration.md`). Pages not yet built are not linked from the site.
 
 | New URL | Replaces (old URL) | Delivered in |
 |---|---|---|

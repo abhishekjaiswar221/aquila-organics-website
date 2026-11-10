@@ -1,4 +1,4 @@
-import { contactApplication, isContactType, type ContactType } from "@/features/contact/schema";
+import { isContactApplicationSlug, isContactType, type ContactType } from "@/features/contact/schema";
 
 /** No valid type or slug is anywhere near this long; longer values are dropped unread. */
 const MAX_PARAM = 64;
@@ -22,6 +22,6 @@ export function parseContactParams(search: Record<string, string | string[] | un
   const type = first(search.type);
   if (!isContactType(type)) return {};
   const slug = first(search.application);
-  const application = slug === undefined ? undefined : contactApplication(type, slug);
-  return application ? { type, application: application.slug } : { type };
+  const application = slug !== undefined && isContactApplicationSlug(type, slug) ? slug : undefined;
+  return application ? { type, application } : { type };
 }

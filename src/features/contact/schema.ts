@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { findApplication, type SegmentId } from "@/content/segments";
-import type { ApplicationRecord } from "@/content/types";
+import { APPLICATION_SLUGS, type SegmentId } from "@/content/application-slugs";
 import {
   ATTACHMENTS_FIELD,
   cleanMultiline,
@@ -54,10 +53,15 @@ export function contactHasApplications(type: ContactType): boolean {
   return APPLICATION_SEGMENT[type] !== undefined;
 }
 
-/** The fixed application record for this type and slug (exact match), if any. */
-export function contactApplication(type: ContactType, slug: string): ApplicationRecord | undefined {
+/** The segment whose applications a contact type offers, if any. */
+export function contactSegmentId(type: ContactType): SegmentId | undefined {
+  return APPLICATION_SEGMENT[type];
+}
+
+/** True when the slug is one of the fixed application slugs for this type (exact match). */
+export function isContactApplicationSlug(type: ContactType, slug: string): boolean {
   const segment = APPLICATION_SEGMENT[type];
-  return segment ? findApplication(segment, slug) : undefined;
+  return segment !== undefined && (APPLICATION_SLUGS[segment] as readonly string[]).includes(slug);
 }
 
 /** The value stored in Enquiry.businessSegment for a contact type. */
@@ -106,7 +110,7 @@ export const contactSchema = contactFields
           path: ["application"],
           message: "An application can only be chosen for fragrance or flavour enquiries",
         });
-      } else if (!contactApplication(data.type, data.application)) {
+      } else if (!isContactApplicationSlug(data.type, data.application)) {
         ctx.addIssue({ code: "custom", path: ["application"], message: "Choose an application from the list" });
       }
     },

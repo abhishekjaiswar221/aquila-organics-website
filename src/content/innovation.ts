@@ -10,7 +10,7 @@ import type { Block, PageSection } from "./types";
 
 export const innovationMeta = {
   title: "Innovation and capabilities",
-  lead: "Chemistry that fragrance houses build on.",
+  lead: chemistries.data.offer,
   description:
     "Aroma chemical manufacturing capabilities at Aquila Organics: synthetic chemistries, process expertise and made-to-order ingredients.",
 } as const;

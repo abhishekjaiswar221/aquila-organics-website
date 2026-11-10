@@ -1,4 +1,5 @@
-import { contactApplication, contactBusinessSegment, contactFromFormData, contactSchema } from "@/features/contact/schema";
+import { contactApplication } from "@/features/contact/applications";
+import { contactBusinessSegment, contactFromFormData, contactSchema } from "@/features/contact/schema";
 import {
   checkHoneypot,
   createEnquiry,

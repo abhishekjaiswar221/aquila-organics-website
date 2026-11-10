@@ -35,6 +35,8 @@ export const redirectTable: RedirectRule[] = [
  * One hop each: no destination is itself a source (guarded by tests/unit/redirects.test.ts).
  */
 export const redirectRules: RedirectRule[] = [
+  // The old home page URL. It has no /index.php twin (that would be /index.php/index.php).
+  { source: "/index.php", destination: "/" },
   ...redirectTable,
   ...redirectTable.map((r) => ({ source: `/index.php${r.source}`, destination: r.destination })),
 ];

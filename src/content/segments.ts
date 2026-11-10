@@ -1,5 +1,6 @@
 import { fragranceApplications, fragranceIntro, oudhEmphasis } from "./home";
 import { flavourApplications, flavourExtras, flavourIntro } from "./home-business";
+import { APPLICATION_SLUGS, type SegmentId } from "./application-slugs";
 import type { ApplicationRecord, Block, PageSection, SegmentRecord } from "./types";
 
 /**
@@ -7,19 +8,8 @@ import type { ApplicationRecord, Block, PageSection, SegmentRecord } from "./typ
  * reused from the homepage blocks so the two pages cannot drift apart.
  */
 
-export const APPLICATION_SLUGS = {
-  fragrances: [
-    "fine-fragrance",
-    "personal-care",
-    "air-care",
-    "fabric-care",
-    "home-care",
-    "incense-and-bakhoor",
-  ],
-  flavours: ["confectionery", "bakery", "beverages", "dairy", "savoury"],
-} as const;
-
-export type SegmentId = keyof typeof APPLICATION_SLUGS;
+export { APPLICATION_SLUGS };
+export type { SegmentId };
 
 const slugOf = (name: string): string =>
   name

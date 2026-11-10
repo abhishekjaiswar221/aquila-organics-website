@@ -41,7 +41,7 @@ describe("redirect table", () => {
   it("uses absolute paths without query strings or trailing slashes", () => {
     for (const r of redirectRules) {
       for (const p of [r.source, r.destination]) {
-        expect(p, p).toMatch(/^\/[A-Za-z0-9\-_./]*[A-Za-z0-9]$/);
+        expect(p, p).toMatch(/^\/$|^\/[A-Za-z0-9\-_./]*[A-Za-z0-9]$/);
         expect(p, p).not.toContain("?");
       }
     }
@@ -50,7 +50,9 @@ describe("redirect table", () => {
 
 describe("/index.php variants", () => {
   it("adds one variant per clean rule with the same destination", () => {
-    expect(redirectRules).toHaveLength(redirectTable.length * 2);
+    // One extra rule: the old home URL /index.php itself.
+    expect(redirectRules).toHaveLength(redirectTable.length * 2 + 1);
+    expect(redirectRules.find((x) => x.source === "/index.php")?.destination).toBe("/");
     for (const r of redirectTable) {
       const variant = redirectRules.find((x) => x.source === `/index.php${r.source}`);
       expect(variant?.destination, r.source).toBe(r.destination);

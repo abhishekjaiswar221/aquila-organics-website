@@ -34,11 +34,11 @@ How the old Aquila website's URLs map to the new site. The old site was a Joomla
 | `/about/certification` | `/sustainability/certifications` |
 | `/contactus` | `/contact` |
 
-Each of the 18 also has an `/index.php/...` twin (36 rules in total).
+Each of the 18 also has an `/index.php/...` twin, plus the old home URL `/index.php` itself (37 rules in total).
 
 ## Unchanged URLs (no redirect needed)
 
-`/` (and `/index.php`), `/aroma-chemicals`. The old product pages under `/index.php/` (`methyl-chloroacetate`, `ethyl-chloroacetate`, `aldehyde-c-16`) are covered below.
+`/` and `/aroma-chemicals`. The old home URL `/index.php` redirects to `/` (one 301). The old product pages under `/index.php/` (`methyl-chloroacetate`, `ethyl-chloroacetate`, `aldehyde-c-16`) are covered below.
 
 ## Still pending
 
