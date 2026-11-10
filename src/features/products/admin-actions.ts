@@ -2,7 +2,7 @@
 
 import { refresh } from "next/cache";
 import type { ProductStatus } from "@/generated/prisma/enums";
-import { auditLog } from "@/features/admin/audit";
+import { recordAudit, recordAuditBestEffort, type AuditInput } from "@/features/admin/audit";
 import { isProductStatus } from "@/features/products/admin-queries";
 import { PUBLISH_REQUIREMENTS_ERROR, isPublishCheckViolation, publishBlockReason } from "@/features/products/publish-guard";
 import { db } from "@/lib/db";
@@ -42,8 +42,18 @@ export async function setProductStatus(
   if (!id) return { ok: false, error: INVALID_PRODUCT };
   if (!isProductStatus(status)) return { ok: false, error: INVALID_STATUS };
 
-  const audit = (outcome: "ok" | "rejected", from?: ProductStatus) =>
-    auditLog("product.status", { actorId: actor.userId, actorRole: actor.role, productId: id, outcome, from, to: status });
+  // Rejected attempts are audited best-effort; the successful change writes its
+  // audit row in the same transaction as the change.
+  const entry = (outcome: "ok" | "rejected", from?: ProductStatus): AuditInput => ({
+    actorId: actor.userId,
+    actorRole: actor.role,
+    action: "product.status",
+    entityType: "product",
+    entityId: id,
+    outcome,
+    changedFields: ["status"],
+    detail: { ...(from ? { from } : {}), to: status },
+  });
 
   try {
     const product = await db.product.findUnique({
@@ -56,27 +66,34 @@ export async function setProductStatus(
     if (status === "PUBLISHED") {
       const reason = publishBlockReason(product);
       if (reason) {
-        audit("rejected", product.status);
+        await recordAuditBestEffort(entry("rejected", product.status));
         return { ok: false, error: reason };
       }
       // Conditional write: if the product was unverified meanwhile, nothing
       // changes; the CHECK constraint backs up the name/slug rule.
-      const { count } = await db.product.updateMany({
-        where: { id, verified: true },
-        data: { status: "PUBLISHED", publishedAt: new Date() },
+      const published = await db.$transaction(async (tx) => {
+        const { count } = await tx.product.updateMany({
+          where: { id, verified: true },
+          data: { status: "PUBLISHED", publishedAt: new Date() },
+        });
+        if (count === 0) return false;
+        await recordAudit(entry("ok", product.status), tx);
+        return true;
       });
-      if (count === 0) {
-        audit("rejected", product.status);
+      if (!published) {
+        await recordAuditBestEffort(entry("rejected", product.status));
         return { ok: false, error: PUBLISH_REQUIREMENTS_ERROR };
       }
     } else {
-      await db.product.update({ where: { id }, data: { status } });
+      await db.$transaction(async (tx) => {
+        await tx.product.update({ where: { id }, data: { status } });
+        await recordAudit(entry("ok", product.status), tx);
+      });
     }
-    audit("ok", product.status);
     return { ok: true };
   } catch (err) {
     if (isPublishCheckViolation(err)) {
-      audit("rejected");
+      await recordAuditBestEffort(entry("rejected"));
       return { ok: false, error: PUBLISH_REQUIREMENTS_ERROR };
     }
     console.error("[admin] product status change failed:", errorClass(err));
@@ -92,12 +109,14 @@ export async function setProductVerified(productId: string, verified: boolean): 
   const actor = await requireRole();
   const id = normalizeUuid(productId);
   if (!can(actor.role, "products.verify")) {
-    auditLog("product.verified", {
+    await recordAuditBestEffort({
       actorId: actor.userId,
       actorRole: actor.role,
-      productId: id ?? "invalid",
+      action: "product.verified",
+      entityType: "product",
+      entityId: id ?? undefined,
       outcome: "denied",
-      to: typeof verified === "boolean" ? verified : undefined,
+      detail: typeof verified === "boolean" ? { to: verified } : undefined,
     });
     return { ok: false, error: NOT_PERMITTED };
   }
@@ -109,18 +128,24 @@ export async function setProductVerified(productId: string, verified: boolean): 
     if (!product) return { ok: false, error: NOT_FOUND };
     if (product.verified === verified) return { ok: true };
     const unpublish = !verified && product.status === "PUBLISHED";
-    await db.product.update({
-      where: { id },
-      data: unpublish ? { verified, status: "DRAFT" } : { verified },
-    });
-    auditLog("product.verified", {
-      actorId: actor.userId,
-      actorRole: actor.role,
-      productId: id,
-      outcome: "ok",
-      from: product.verified,
-      to: verified,
-      effect: unpublish ? "unpublished" : undefined,
+    await db.$transaction(async (tx) => {
+      await tx.product.update({
+        where: { id },
+        data: unpublish ? { verified, status: "DRAFT" } : { verified },
+      });
+      await recordAudit(
+        {
+          actorId: actor.userId,
+          actorRole: actor.role,
+          action: "product.verified",
+          entityType: "product",
+          entityId: id,
+          outcome: "ok",
+          changedFields: unpublish ? ["verified", "status"] : ["verified"],
+          detail: { from: product.verified, to: verified, unpublished: unpublish },
+        },
+        tx,
+      );
     });
     return { ok: true };
   } catch (err) {

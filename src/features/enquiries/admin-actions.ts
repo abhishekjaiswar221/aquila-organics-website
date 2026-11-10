@@ -2,6 +2,7 @@
 
 import { refresh } from "next/cache";
 import type { EnquiryStatus } from "@/generated/prisma/enums";
+import { recordAudit } from "@/features/admin/audit";
 import { STATUS_LABELS, isEnquiryStatus } from "@/features/enquiries/status";
 import { db } from "@/lib/db";
 import { requireAction } from "@/lib/permissions";
@@ -42,6 +43,19 @@ export async function setEnquiryStatus(enquiryId: string, status: EnquiryStatus)
       await tx.enquiryActivity.create({
         data: { enquiryId: id, actorId: actor.userId, action: "status.changed", detail: { from: current.status, to: status } },
       });
+      await recordAudit(
+        {
+          actorId: actor.userId,
+          actorRole: actor.role,
+          action: "enquiry.status",
+          entityType: "enquiry",
+          entityId: id,
+          outcome: "ok",
+          changedFields: ["status"],
+          detail: { from: current.status, to: status },
+        },
+        tx,
+      );
       return { ok: true } as const;
     });
   } catch (err) {

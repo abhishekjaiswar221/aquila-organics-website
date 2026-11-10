@@ -1,26 +1,70 @@
 import "server-only";
+import type { Prisma } from "@/generated/prisma/client";
+import { sanitiseAuditChangedFields, sanitiseAuditDetail, type AuditDetail } from "@/features/admin/audit-detail";
+import { db } from "@/lib/db";
 
 /*
- * Audit trail for admin product changes. The schema has no generic audit table
- * (EnquiryActivity covers enquiries only) and this slice adds no migration, so
- * product status and verification changes are written as one structured line
- * on the server log: ids, enum values and outcome only, never email addresses,
- * names or other personal data. A database audit table is a later sub-project.
+ * Database audit trail for admin changes. Rows hold ids, enum values, field
+ * names and counts only (see audit-detail.ts); never emails, names or free
+ * text. Pass the transaction so the audit row commits or rolls back with the
+ * change itself.
  */
 
-export type AuditEvent = "product.status" | "product.verified";
+export const AUDIT_ACTIONS = [
+  "product.create",
+  "product.update",
+  "product.status",
+  "product.verified",
+  "product.reverify",
+  "category.create",
+  "category.update",
+  "category.delete",
+  "document.upload",
+  "document.delete",
+  "settings.recipients",
+  "user.create",
+  "user.role",
+  "user.disable",
+  "user.enable",
+  "user.reset-password",
+  "enquiry.status",
+] as const;
 
-export type AuditFields = {
-  actorId: string;
+export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+export type AuditOutcome = "ok" | "denied" | "rejected";
+
+export type AuditInput = {
+  actorId: string | null;
   actorRole: string;
-  productId: string;
-  outcome: "ok" | "denied" | "rejected";
-  from?: string | boolean;
-  to?: string | boolean;
-  /** Extra effect, e.g. an unverified product also being unpublished. */
-  effect?: string;
+  action: AuditAction;
+  entityType: string;
+  entityId?: string;
+  outcome: AuditOutcome;
+  changedFields?: string[];
+  detail?: AuditDetail;
 };
 
-export function auditLog(event: AuditEvent, fields: AuditFields): void {
-  console.info("[admin.audit]", JSON.stringify({ event, at: new Date().toISOString(), ...fields }));
+export async function recordAudit(input: AuditInput, tx?: Prisma.TransactionClient): Promise<void> {
+  const detail = sanitiseAuditDetail(input.detail);
+  await (tx ?? db).auditLog.create({
+    data: {
+      actorId: input.actorId,
+      actorRole: input.actorRole,
+      action: input.action,
+      entityType: input.entityType,
+      entityId: input.entityId,
+      outcome: input.outcome,
+      changedFields: sanitiseAuditChangedFields(input.changedFields),
+      ...(detail ? { detail } : {}),
+    },
+  });
+}
+
+/** Best-effort write for denied/rejected attempts: a failed audit must not change the answer. */
+export async function recordAuditBestEffort(input: AuditInput): Promise<void> {
+  try {
+    await recordAudit(input);
+  } catch (err) {
+    console.error("[admin] audit write failed:", err instanceof Error ? err.name : typeof err);
+  }
 }
