@@ -338,6 +338,9 @@ export function RfqForm() {
     <form
       ref={formRef}
       noValidate
+      // Defence in depth: a click before hydration, or with JavaScript off, must never put the
+      // visitor's details in the URL (a native GET would). POST sends them in the body instead.
+      method="post"
       onSubmit={(e) => {
         // handleSubmit prevents the native submission.
         void form.handleSubmit(onValid, onInvalid)(e);

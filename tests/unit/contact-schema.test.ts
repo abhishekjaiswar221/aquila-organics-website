@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CONTACT_MESSAGE_MAX,
   CONTACT_MESSAGE_MIN,
+  CONTACT_MESSAGE_RAW_MAX,
   CONTACT_TYPES,
   contactApplication,
   contactBusinessSegment,
@@ -182,5 +183,25 @@ describe("contact FormData round trip", () => {
     const raw = contactFromFormData(fd);
     expect(raw.consent).toBe(false);
     expect(raw.type).toBeUndefined();
+  });
+});
+
+describe("message length is bounded before any cleaning", () => {
+  it("exports a raw ceiling above the cleaned maximum", () => {
+    expect(CONTACT_MESSAGE_RAW_MAX).toBeGreaterThan(CONTACT_MESSAGE_MAX);
+  });
+
+  it("rejects an oversized raw message with the length error, not the cleaned-too-short error", () => {
+    // Control characters would clean down to an empty string. If cleaning ran first the error would be
+    // "at least N characters"; the raw-length check must fire first.
+    const r = contactSchema.safeParse(valid({ message: "\u{0}".repeat(CONTACT_MESSAGE_RAW_MAX + 1) }));
+    expect(r.success).toBe(false);
+    const msg = r.success ? "" : (r.error.issues.find((i) => i.path[0] === "message")?.message ?? "");
+    expect(msg).toMatch(/at most/i);
+  });
+
+  it("still accepts a message at the cleaned maximum and one with some control characters", () => {
+    expect(contactSchema.safeParse(valid({ message: "a".repeat(CONTACT_MESSAGE_MAX) })).success).toBe(true);
+    expect(contactSchema.safeParse(valid({ message: `${"a".repeat(50)}\u{0}\u{7}${"b".repeat(50)}` })).success).toBe(true);
   });
 });

@@ -25,6 +25,12 @@ export type ContactType = (typeof CONTACT_TYPES)[number];
 
 export const CONTACT_MESSAGE_MIN = 10;
 export const CONTACT_MESSAGE_MAX = 4000;
+/**
+ * Ceiling on the RAW message, checked before the cleaning passes run. Cleaning strips control and
+ * invisible characters with several linear regex passes, so without this a request carrying the full
+ * server-action body (up to 52 MB) would be scanned in full before any length rule applied.
+ */
+export const CONTACT_MESSAGE_RAW_MAX = CONTACT_MESSAGE_MAX * 4;
 
 /** The types whose form offers an application, and the segment holding their slugs. */
 const APPLICATION_SEGMENT: Partial<Record<ContactType, SegmentId>> = {
@@ -82,6 +88,7 @@ export const contactSchema = contactFields
       .transform((v) => (v === "" ? undefined : v)),
     message: z
       .string({ error: messageError })
+      .max(CONTACT_MESSAGE_RAW_MAX, { error: `Message must be at most ${CONTACT_MESSAGE_MAX} characters` })
       .transform(cleanMultiline)
       .pipe(
         z

@@ -174,3 +174,18 @@ tests/unit, tests/integration, tests/e2e
 - Names consistent across tasks: `ApplicationRecord`, `SegmentRecord`, `CertificateRecord`, `certificateStatus`, `buildPageMetadata`, `breadcrumbJsonLd`, `organizationJsonLd`, `CONTACT_TYPES`, `contactSchema`, `parseContactParams`, `processContactSubmission`, `redirectTable`.
 - Execution-order dependencies: Task 3's consultation links point at `/contact` which ships in Task 6 (asserted by `href` until then); Task 7 flips nav availability after all pages exist; Task 5's extraction refactors shared code, so its first commit must leave the existing RFQ tests green before any contact code is added.
 - Judgement calls for review: the Aroma Chemicals Contact form is a message form of type AROMA_CHEMICALS with a prominent link to the existing `/rfq` for multi-product requests (the spec allows product lines but not requires them); `GENERAL` maps to `businessSegment` `OTHER`; the certificates list starts empty by design.
+
+---
+
+## Deviations as built
+
+- **Hybrid execution:** Tasks 1 to 4, 7 and 8 were built natively; Tasks 5 and 6 were subagent-driven with independent per-task reviews.
+- **Unknown application slugs:** `dynamicParams` is unavailable under `cacheComponents`, and an in-page `notFound()` answered 200 on a cold server, so `src/proxy.ts` answers a real 404 with a pure slug check (`src/features/pages/application-guard.ts`), the same mechanism the catalogue uses. The `/fragrances/%2e%2e` e2e case was dropped: dot segments normalise to `/` before routing.
+- **Certifications indexing:** the page's `noindex` and the sitemap entry depend on `hasConfirmedCertificates()` (any verified entry), not "at least one active", because `new Date()` cannot run during prerender. The page body itself compares expiry dates per request (`connection()` first).
+- **Helper naming:** the new breadcrumb structured-data helper is `pageBreadcrumbJsonLd`; `breadcrumbJsonLd` already exists for products.
+- **Redirects:** an explicit `statusCode: 301` is used (Next's `permanent: true` answers 308). Every rule also has an `/index.php/...` twin. Old URLs with a trailing slash take two hops (Next's own 308, then the 301); documented in `docs/url-migration.md` and pinned by a test.
+- **Contact forms:** General is the default first tab (the brief lists Fragrances first; a visitor with no `?type` most plausibly has a general question). Contact confirmations use `/contact/confirmation`, sharing `EnquiryConfirmation` with `/rfq/confirmation`. The Aroma Chemicals form is message-only and links to `/rfq` for multi-product quotations. The shared form pieces moved to `src/components/forms/form-fields.tsx`.
+- **Shared limiter buckets:** contact submissions share the RFQ per-IP bucket (`rfq:`) and per-address acknowledgement bucket (`rfq-ack:`), so switching forms gives no extra quota.
+- **Header and drawer:** the call to action links to `/contact` instead of a `mailto:`; the header gained About and Sustainability; `segments` in `src/content/site.ts` is hand-written (not imported from `src/content/segments.ts`) to keep the client menu small, with unit tests tying the labels and paths together.
+- **Final fixes from reviews:** the contact message has a raw-length ceiling before cleaning; the admin enquiry page labels a contact enquiry's text "Message" and hides the empty products section; both forms use `method="post"`; `src/lib/email/dev.ts` carries a `turbopackIgnore` hint; `tests/unit/setup.ts` unmounts Testing Library renders between tests.
+- **Regression caught late:** adding pages to the sitemap broke an exact-count e2e check that was not re-run; it now compares the exact set of expected paths.

@@ -63,3 +63,21 @@ Replace: all placeholder category images, "Demo Site" logo alt, Joomla placehold
 | 5 | RFQ acknowledgement email content | 📄 Deliberately minimised | The acknowledgement goes to whatever address was typed, so it carries only a constant greeting ("Dear customer,"), the reference, the number of product lines and a generic next-steps sentence: no visitor name, item names, line notes, company or requirements (the internal notification to sales keeps the full details). At most 3 per address per day (README "Email abuse limits"). Any wording change must keep it free of visitor-typed text |
 | 6 | Certificates and EcoVadis | 🛑 Still hidden | Sub-project 2 adds no certificate, badge or EcoVadis content anywhere (catalogue, product pages, RFQ, emails). Section B still applies |
 | 7 | Product data shown publicly | 📄 Only what is stored | Product pages show only the fields a product actually has (name, code, CAS, category, description, specifications, applications, documents). The JSON-LD carries no prices or offers. `sourceNote` is internal and never rendered |
+
+## I. Sub-project 3: business content pages
+
+Run `npm run content:report` to list the blocks below from the code (it prints every block still marked `needs-client-confirmation` or `brief-supplied`).
+
+| # | Item | Status | Action |
+|---|---|---|---|
+| 1 | Oud, Bakhoor and Arabic fragrance notes (`/fragrances/incense-and-bakhoor`, homepage) | 📄 Brief only, not on the live site | Client to approve the statement and supply supporting detail |
+| 2 | Shisha and mouth-fresheners flavours line (`/flavours`, homepage) | ❓ Appears once on the live site | Client to confirm they want it shown |
+| 3 | Toll manufacturing (`/innovation`, homepage) | ❓ Listed as "Contract Research / Toll Manufacturing" on the live site | Client to confirm |
+| 4 | Company introduction, industries served and regions (`/about`, homepage) | 📄 Brief-supplied | Client to approve the wording; "cosmetics" is not an existing site category |
+| 5 | `flavors@` mailbox | ❓ Spelled "flavors@" on the live site | Client to confirm the spelling before it is relied on. It is shown only inside the Flavours contact form |
+| 6 | Named contacts (Shalin Kale, Sunil Patil) and the second director (Gurudeo Hattali) | 🛑 Hidden | Never rendered. Consent (contacts) and confirmation (director) needed before showing |
+| 7 | Compliance page (`/sustainability/compliance`) | 📄 Describes documents as awaiting confirmation | Names no regulation and claims no compliance. Client to say what each file covers, who issued it and how long it is valid |
+| 8 | Certifications page (`/sustainability/certifications`) | 🛑 Empty by design, `noindex` | Add an entry to `src/content/certifications.ts` (status `verified`) only after issuer, dates and scope are confirmed. Expired entries are never shown as current |
+| 9 | Contact hours ("Monday to Saturday, 09:00 to 17:00") | ❓ No time zone stated | Client to confirm and say whether to show IST |
+| 10 | Application pages | 📄 Short by design | Each has one verified sentence. Capabilities, typical uses and imagery need client input; nothing is invented |
+| 11 | Contact enquiries | 📄 Message-only | Create enquiries of the matching type with no product lines. Internal recipients per type are still empty (see H2). The acknowledgement carries no visitor text (see H5) |
