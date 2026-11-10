@@ -36,12 +36,16 @@ describe("site addresses", () => {
 
 describe("content copy guard", () => {
   const dir = path.resolve(__dirname, "../../src/content");
-  const files = fs.readdirSync(dir).filter((f) => f.endsWith(".ts"));
+  // Recursive so content added in subfolders is guarded too.
+  const files = (fs.readdirSync(dir, { recursive: true }) as string[])
+    .map((f) => f.replace(/\\/g, "/"))
+    .filter((f) => f.endsWith(".ts"));
   it("contains at least the expected content modules", () => {
     expect(files).toEqual(expect.arrayContaining(["site.ts", "types.ts", "index.ts"]));
   });
-  it.each(files)("%s has no unconfirmed age/founding claims", (f) => {
+  it.each(files)("%s has no unconfirmed age/founding/superlative claims", (f) => {
     const text = fs.readFileSync(path.join(dir, f), "utf8");
     expect(text).not.toMatch(/16\+|since 20(10|12)|\b\d+\s+years/i);
+    expect(text).not.toMatch(/best agarbatti|largest manufacturer|state-of-the-art/i);
   });
 });
