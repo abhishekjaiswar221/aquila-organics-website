@@ -18,6 +18,11 @@ export const aboutBlocks: Block<PageSection>[] = [
     data: { kind: "paragraphs", paragraphs: intro.data.paragraphs },
   },
   {
+    id: "about-segments",
+    status: "verified",
+    data: { kind: "list", heading: "What we make", items: ["Fragrances", "Aroma chemicals", "Flavours"] },
+  },
+  {
     id: "about-industries",
     status: intro.status,
     data: { kind: "list", heading: "Industries we serve", items: intro.data.industries },

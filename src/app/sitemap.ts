@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 import { connection } from "next/server";
+import { certificates } from "@/content/certifications";
 import { getPublishedSitemapEntries } from "@/features/products/queries";
+import { hasConfirmedCertificates } from "@/lib/certificates";
 import { buildSitemap } from "@/lib/seo/sitemap";
 import { SITE_URL } from "@/lib/seo/site-url";
 
@@ -9,5 +11,7 @@ import { SITE_URL } from "@/lib/seo/site-url";
 // need database access.
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   await connection();
-  return buildSitemap(SITE_URL, await getPublishedSitemapEntries());
+  return buildSitemap(SITE_URL, await getPublishedSitemapEntries(), {
+    certificationsIndexable: hasConfirmedCertificates(certificates),
+  });
 }

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { activeCertificates, certificateStatus, expiredCertificates } from "@/lib/certificates";
+import {
+  activeCertificates,
+  certificateStatus,
+  expiredCertificates,
+  hasConfirmedCertificates,
+} from "@/lib/certificates";
 import type { CertificateRecord } from "@/content/types";
 
 const cert = (over: Partial<CertificateRecord> = {}): CertificateRecord => ({
@@ -69,5 +74,18 @@ describe("activeCertificates / expiredCertificates", () => {
   it("splits entries and drops anything unconfirmed from both lists", () => {
     expect(activeCertificates(list, now).map((c) => c.id)).toEqual(["a"]);
     expect(expiredCertificates(list, now).map((c) => c.id)).toEqual(["b"]);
+  });
+});
+
+describe("hasConfirmedCertificates", () => {
+  it("is false for an empty list and for entries that are not verified", () => {
+    expect(hasConfirmedCertificates([])).toBe(false);
+    expect(hasConfirmedCertificates([cert({ status: "needs-client-confirmation" }), cert({ status: "hidden" })])).toBe(false);
+  });
+
+  it("is true as soon as one entry is verified, whatever its expiry (needs no clock)", () => {
+    expect(hasConfirmedCertificates([cert({ status: "needs-client-confirmation" }), cert({ expiresOn: "2001-01-01" })])).toBe(
+      true,
+    );
   });
 });

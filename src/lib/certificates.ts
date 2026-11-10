@@ -32,6 +32,14 @@ export function certificateStatus(cert: CertificateRecord, now: Date): Certifica
   return now.getTime() >= expiry + DAY_MS ? "expired" : "active";
 }
 
+/**
+ * True when at least one entry is verified. Needs no clock, so it is safe to use for static
+ * decisions (the page's robots meta and the sitemap) that must not depend on the current time.
+ */
+export function hasConfirmedCertificates(certs: readonly CertificateRecord[]): boolean {
+  return certs.some((c) => c.status === "verified");
+}
+
 export function activeCertificates(certs: readonly CertificateRecord[], now: Date): CertificateRecord[] {
   return certs.filter((c) => certificateStatus(c, now) === "active");
 }

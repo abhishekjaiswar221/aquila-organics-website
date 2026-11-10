@@ -4,6 +4,22 @@ import { CATALOGUE_PATH, PRIVACY_PATH, absoluteUrl, productPath } from "./site-u
 
 export type SitemapProduct = { slug: string; lastModified: Date };
 
+export type SitemapOptions = {
+  /** List /sustainability/certifications only once it shows at least one confirmed certificate. */
+  certificationsIndexable?: boolean;
+};
+
+/** Company and sustainability pages: static content, always indexable (certifications is conditional). */
+function companyEntries(baseUrl: string, options: SitemapOptions): MetadataRoute.Sitemap {
+  const paths = ["/about", "/innovation", "/sustainability", "/sustainability/compliance"];
+  if (options.certificationsIndexable) paths.push("/sustainability/certifications");
+  return paths.map((path) => ({
+    url: absoluteUrl(baseUrl, path),
+    changeFrequency: "monthly" as const,
+    priority: 0.6,
+  }));
+}
+
 /** Segment overviews and every application page: static content, always indexable. */
 function segmentEntries(baseUrl: string): MetadataRoute.Sitemap {
   return [fragranceSegment, flavourSegment].flatMap((segment) => [
@@ -17,11 +33,16 @@ function segmentEntries(baseUrl: string): MetadataRoute.Sitemap {
 }
 
 /** Public, indexable URLs only: homepage, catalogue, segment pages, published products, privacy notice. */
-export function buildSitemap(baseUrl: string, products: readonly SitemapProduct[]): MetadataRoute.Sitemap {
+export function buildSitemap(
+  baseUrl: string,
+  products: readonly SitemapProduct[],
+  options: SitemapOptions = {},
+): MetadataRoute.Sitemap {
   return [
     { url: absoluteUrl(baseUrl, "/"), changeFrequency: "monthly", priority: 1 },
     { url: absoluteUrl(baseUrl, CATALOGUE_PATH), changeFrequency: "weekly", priority: 0.8 },
     ...segmentEntries(baseUrl),
+    ...companyEntries(baseUrl, options),
     ...products.map((p) => ({
       url: absoluteUrl(baseUrl, productPath(p.slug)),
       lastModified: p.lastModified,

@@ -24,6 +24,10 @@ describe("buildSitemap", () => {
       "https://example.test/flavours/beverages",
       "https://example.test/flavours/dairy",
       "https://example.test/flavours/savoury",
+      "https://example.test/about",
+      "https://example.test/innovation",
+      "https://example.test/sustainability",
+      "https://example.test/sustainability/compliance",
       "https://example.test/aroma-chemicals/test-ethanol",
       "https://example.test/aroma-chemicals/test-water",
       "https://example.test/privacy",
@@ -35,6 +39,23 @@ describe("buildSitemap", () => {
     const entries = buildSitemap("https://example.test", [{ slug: "a b", lastModified: new Date(0) }]);
     expect(entries.at(-2)?.url).toBe("https://example.test/aroma-chemicals/a%20b");
     expect(entries.some((e) => /\/(admin|api)\b/.test(e.url))).toBe(false);
+  });
+});
+
+describe("buildSitemap certifications page", () => {
+  const certUrl = "https://example.test/sustainability/certifications";
+
+  it("omits the certifications page by default and when it is not indexable", () => {
+    expect(buildSitemap("https://example.test", []).map((e) => e.url)).not.toContain(certUrl);
+    expect(
+      buildSitemap("https://example.test", [], { certificationsIndexable: false }).map((e) => e.url),
+    ).not.toContain(certUrl);
+  });
+
+  it("lists it, right after the compliance page, once it is indexable", () => {
+    const urls = buildSitemap("https://example.test", [], { certificationsIndexable: true }).map((e) => e.url);
+    const i = urls.indexOf("https://example.test/sustainability/compliance");
+    expect(urls[i + 1]).toBe(certUrl);
   });
 });
 

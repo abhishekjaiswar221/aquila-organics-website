@@ -2,8 +2,8 @@ import type { Block, CertificateRecord } from "./types";
 
 export const certificationsMeta = {
   title: "Certifications",
-  lead: "Certificates held by Aquila Organics.",
-  description: "Certificates held by Aquila Organics, with issuing body, dates and scope.",
+  lead: "Each certificate is listed with its issuing body, dates and scope once confirmed.",
+  description: "Certificates for Aquila Organics, listed with issuing body, dates and scope once confirmed.",
 } as const;
 
 /**
