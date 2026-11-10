@@ -103,9 +103,26 @@ export function acknowledgementEmail(e: AcknowledgementInput): RenderedEmail {
   return { subject, html, text };
 }
 
+type Details = [string, string | undefined][];
+
+/** The labelled details table (empty values left out), as HTML rows and text lines. */
+function renderDetails(details: Details): { html: string; text: string } {
+  const present = details.filter((d): d is [string, string] => Boolean(d[1]));
+  return {
+    html: present
+      .map(([k, v]) => `<tr><th align="left">${h(k)}</th><td style="white-space:pre-wrap">${h(v)}</td></tr>`)
+      .join(""),
+    text: present.map(([k, v]) => `${k}: ${v}`).join("\n"),
+  };
+}
+
+function attachmentList(names: string[] | undefined): string | undefined {
+  return names?.length ? names.join(", ") : undefined;
+}
+
 export function internalNotificationEmail(e: InternalNotificationInput): RenderedEmail {
   const subject = oneLine(`New enquiry ${e.reference} from ${e.fullName}`);
-  const details: [string, string | undefined][] = [
+  const details = renderDetails([
     ["Name", e.fullName],
     ["Company", e.company],
     ["Email", e.email],
@@ -114,20 +131,79 @@ export function internalNotificationEmail(e: InternalNotificationInput): Rendere
     ["Business segment", e.businessSegment],
     ["Application", e.application],
     ["Notes", e.notes],
-    ["Attachments", e.attachmentNames?.length ? e.attachmentNames.join(", ") : undefined],
-  ];
-  const present = details.filter((d): d is [string, string] => Boolean(d[1]));
-  const htmlDetails = present
-    .map(([k, v]) => `<tr><th align="left">${h(k)}</th><td style="white-space:pre-wrap">${h(v)}</td></tr>`)
-    .join("");
+    ["Attachments", attachmentList(e.attachmentNames)],
+  ]);
   const html = wrapHtml(
     `<p>New enquiry <strong>${h(e.reference)}</strong>.</p>` +
-      `<table>${htmlDetails}</table>` +
+      `<table>${details.html}</table>` +
       `<p>Requested products:</p>${htmlItems(e.items)}`,
   );
   const text =
     `New enquiry ${e.reference}\n\n` +
-    present.map(([k, v]) => `${k}: ${v}`).join("\n") +
+    details.text +
     `\n\nRequested products:\n${textItems(e.items)}\n`;
+  return { subject, html, text };
+}
+
+/**
+ * Acknowledgement for a Contact form message. Same rule as
+ * acknowledgementEmail: a constant greeting, the reference and constant
+ * sentences only; the message itself is never echoed.
+ */
+export interface MessageAcknowledgementInput {
+  reference: string;
+}
+
+export function messageAcknowledgementEmail(e: MessageAcknowledgementInput): RenderedEmail {
+  const subject = oneLine(`We received your message ${e.reference}`);
+  const html = wrapHtml(
+    `<p>${h(ACK_GREETING)}</p>` +
+      `<p>Thank you for contacting us. Your reference is <strong>${h(e.reference)}</strong>.</p>` +
+      `<p>We have received your message.</p>` +
+      `<p>Our team will review it and reply shortly. Please quote the reference in any correspondence.</p>` +
+      `<p>Aquila Organics</p>`,
+  );
+  const text =
+    `${ACK_GREETING}\n\n` +
+    `Thank you for contacting us. Your reference is ${e.reference}.\n\n` +
+    `We have received your message.\n\n` +
+    `Our team will review it and reply shortly. Please quote the reference in any correspondence.\n\n` +
+    `Aquila Organics\n`;
+  return { subject, html, text };
+}
+
+export interface InternalMessageNotificationInput {
+  reference: string;
+  /** Human label of the enquiry type, e.g. "Flavours". */
+  enquiryType: string;
+  fullName: string;
+  company?: string;
+  email?: string;
+  phone?: string;
+  country?: string;
+  application?: string;
+  message: string;
+  attachmentNames?: string[];
+}
+
+/** Internal notification for a Contact form message; the subject carries no visitor text. */
+export function internalMessageNotificationEmail(e: InternalMessageNotificationInput): RenderedEmail {
+  const subject = oneLine(`New contact message ${e.reference}`);
+  const details = renderDetails([
+    ["Enquiry type", e.enquiryType],
+    ["Name", e.fullName],
+    ["Company", e.company],
+    ["Email", e.email],
+    ["Phone", e.phone],
+    ["Country", e.country],
+    ["Application", e.application],
+    ["Attachments", attachmentList(e.attachmentNames)],
+  ]);
+  const html = wrapHtml(
+    `<p>New contact message <strong>${h(e.reference)}</strong>.</p>` +
+      `<table>${details.html}</table>` +
+      `<p>Message:</p><p style="white-space:pre-wrap">${h(e.message)}</p>`,
+  );
+  const text = `New contact message ${e.reference}\n\n` + details.text + `\n\nMessage:\n${e.message}\n`;
   return { subject, html, text };
 }

@@ -5,7 +5,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import {
   acknowledgementEmail,
+  internalMessageNotificationEmail,
   internalNotificationEmail,
+  messageAcknowledgementEmail,
 } from "@/lib/email/templates";
 import { DevEmailProvider } from "@/lib/email/dev";
 
@@ -99,6 +101,68 @@ describe("internalNotificationEmail", () => {
   it("strips CRLF from a subject built from the name", () => {
     const m = internalNotificationEmail({ ...base, fullName: "A\r\nBcc: x@y.z" });
     expect(m.subject).not.toMatch(/[\r\n]/);
+  });
+});
+
+describe("contact message emails", () => {
+  const REF = "AQ-2026-000321";
+  const hostile = {
+    reference: REF,
+    enquiryType: "Flavours",
+    fullName: HOSTILE_NAME,
+    company: "TEST-Company call +1 555",
+    email: "jane@testfragrance.example",
+    phone: "+44 20 7946 0000",
+    country: "TEST-Country",
+    application: "Bakery",
+    message: "TEST-Message line one <b>bold</b>\nvisit evil.example & reply",
+    attachmentNames: ["TEST-brief.pdf"],
+  };
+
+  it("the acknowledgement is constant apart from the reference", () => {
+    const m = messageAcknowledgementEmail({ reference: REF });
+    expect(m.subject).toBe(`We received your message ${REF}`);
+    expect(m.text.startsWith("Dear customer,\n")).toBe(true);
+    expect(m.html).toContain("<p>Dear customer,</p>");
+    expect(m.text).toContain("We have received your message");
+    expect(m.text).toContain(REF);
+    expect(m.text).not.toContain("product line");
+    // Only the reference varies.
+    const other = messageAcknowledgementEmail({ reference: "AQ-2026-000999" });
+    expect(other.text.replace("AQ-2026-000999", REF)).toBe(m.text);
+    expect(other.html.replace("AQ-2026-000999", REF)).toBe(m.html);
+  });
+
+  it("the acknowledgement takes no visitor text even when passed some", () => {
+    const m = messageAcknowledgementEmail(hostile as unknown as { reference: string });
+    for (const secret of [HOSTILE_NAME, "evil.example", "TEST-Message", "TEST-Company", "TEST-Country", "Bakery"]) {
+      expect(`${m.subject}${m.html}${m.text}`).not.toContain(secret);
+    }
+  });
+
+  it("escapes and strips the reference in the acknowledgement", () => {
+    const m = messageAcknowledgementEmail({ reference: "AQ-1\r\nBcc: evil@x.com<b>" });
+    expect(m.subject).not.toMatch(/[\r\n]/);
+    expect(m.html).not.toContain("<b>");
+  });
+
+  it("the internal notification carries the full message, escaped, under a constant subject", () => {
+    const m = internalMessageNotificationEmail(hostile);
+    expect(m.subject).toBe(`New contact message ${REF}`);
+    expect(m.html).toContain("TEST-Message line one &lt;b&gt;bold&lt;/b&gt;\nvisit evil.example &amp; reply");
+    expect(m.html).not.toContain("<b>bold</b>");
+    expect(m.text).toContain(hostile.message);
+    for (const value of [HOSTILE_NAME, "TEST-Company", "TEST-Country", "Bakery", "Flavours", "TEST-brief.pdf"]) {
+      expect(m.text).toContain(value);
+    }
+    expect(m.text).not.toContain("Requested products");
+    expect(m.html).not.toContain("<ul></ul>");
+  });
+
+  it("the internal subject never carries visitor text or line breaks", () => {
+    const m = internalMessageNotificationEmail({ ...hostile, fullName: "A\r\nBcc: x@y.z", reference: "AQ-1\r\nX" });
+    expect(m.subject).not.toMatch(/[\r\n]/);
+    expect(m.subject).not.toContain("Bcc");
   });
 });
 
