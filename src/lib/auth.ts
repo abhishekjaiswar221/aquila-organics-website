@@ -37,6 +37,21 @@ export function createAuth(clientIp: ClientIpConfig = clientIpConfigFromEnv()) {
           // Never accepted from a client (sign-up or update-user).
           input: false,
         },
+        // Both are set only by server code (the users admin), never by a client.
+        disabled: { type: "boolean", required: false, defaultValue: false, input: false },
+        mustChangePassword: { type: "boolean", required: false, defaultValue: false, input: false },
+      },
+    },
+    databaseHooks: {
+      session: {
+        create: {
+          // A disabled user never gets a session, even with the right password.
+          before: async (session) => {
+            const user = await db.user.findUnique({ where: { id: session.userId }, select: { disabled: true } });
+            if (!user || user.disabled) return false;
+            return { data: session };
+          },
+        },
       },
     },
     rateLimit: {

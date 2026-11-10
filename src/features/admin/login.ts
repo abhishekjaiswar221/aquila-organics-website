@@ -1,6 +1,7 @@
 // Pure helpers for the admin sign-in page. Safe on the client and the server.
 
 export const ADMIN_LOGIN_PATH = "/admin/login";
+export const ADMIN_CHANGE_PASSWORD_PATH = "/admin/change-password";
 export const ADMIN_HOME_PATH = "/admin/products";
 
 export const GENERIC_LOGIN_ERROR = "Incorrect email or password.";

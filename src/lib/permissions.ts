@@ -1,11 +1,18 @@
 import { headers } from "next/headers";
 import { forbidden, redirect } from "next/navigation";
-import { ADMIN_ROLES, decideAccess, rolesFor, type AccessDecision, type AdminAction, type AdminRole, type Role } from "@/lib/access";
+import { ADMIN_ROLES, adminGate, decideAccess, rolesFor, type AccessDecision, type AdminAction, type AdminRole, type Role } from "@/lib/access";
 import { auth } from "@/lib/auth";
-import { ADMIN_LOGIN_PATH } from "@/features/admin/login";
+import { ADMIN_CHANGE_PASSWORD_PATH, ADMIN_LOGIN_PATH } from "@/features/admin/login";
 
 export { ADMIN_ROLES, adminLinksFor, can, rolesFor, type AdminAction, type AdminRole, type Role } from "@/lib/access";
-export { ADMIN_LOGIN_PATH };
+export { ADMIN_CHANGE_PASSWORD_PATH, ADMIN_LOGIN_PATH };
+
+type SessionUser = { id: string; role: unknown; disabled?: boolean | null; mustChangePassword?: boolean | null };
+
+function sessionInfo(session: { user: SessionUser }) {
+  const { id, role, disabled, mustChangePassword } = session.user;
+  return { userId: id, role, disabled: disabled === true, mustChangePassword: mustChangePassword === true };
+}
 
 /**
  * The access decision for a request's headers, without throwing. Route
@@ -17,7 +24,7 @@ export async function getAdminAccess(
   allowed: readonly AdminRole[] = ADMIN_ROLES,
 ): Promise<AccessDecision> {
   const session = await auth.api.getSession({ headers: requestHeaders });
-  return decideAccess(session ? { userId: session.user.id, role: session.user.role } : null, allowed);
+  return decideAccess(session ? sessionInfo(session) : null, allowed);
 }
 
 /**
@@ -27,7 +34,11 @@ export async function getAdminAccess(
  */
 export async function requireAdminUser(): Promise<{ userId: string; role: Role; email: string }> {
   const session = await auth.api.getSession({ headers: await headers() });
-  const decision = decideAccess(session ? { userId: session.user.id, role: session.user.role } : null, ADMIN_ROLES);
+  // A user holding a one-time password may only change it: send them there first.
+  if (session && !session.user.disabled && adminGate(sessionInfo(session)) === "change-password") {
+    redirect(ADMIN_CHANGE_PASSWORD_PATH);
+  }
+  const decision = decideAccess(session ? sessionInfo(session) : null, ADMIN_ROLES);
   if (decision.kind === "redirect" || !session) redirect(ADMIN_LOGIN_PATH);
   if (decision.kind === "forbidden") forbidden();
   return { userId: decision.userId, role: decision.role, email: session.user.email };

@@ -68,7 +68,17 @@ export function adminLinksFor(role: Role): { href: string; label: string }[] {
   return ADMIN_LINKS.filter((l) => can(role, l.action)).map(({ href, label }) => ({ href, label }));
 }
 
-export type SessionInfo = { userId: string; role: unknown };
+export type SessionInfo = { userId: string; role: unknown; disabled?: boolean; mustChangePassword?: boolean };
+
+/**
+ * What an admin session may do before any role check: a disabled user is shut
+ * out, and a user holding a one-time password may only change it.
+ */
+export function adminGate(user: { disabled?: boolean; mustChangePassword?: boolean }): "ok" | "disabled" | "change-password" {
+  if (user.disabled) return "disabled";
+  if (user.mustChangePassword) return "change-password";
+  return "ok";
+}
 
 export type AccessDecision =
   | { kind: "redirect" }
@@ -81,6 +91,7 @@ export function decideAccess(
   allowed: readonly AdminRole[],
 ): AccessDecision {
   if (!session) return { kind: "redirect" };
+  if (adminGate(session) !== "ok") return { kind: "forbidden" };
   const { userId, role } = session;
   if (!isRole(role) || !(allowed as readonly Role[]).includes(role)) return { kind: "forbidden" };
   return { kind: "allow", userId, role };
