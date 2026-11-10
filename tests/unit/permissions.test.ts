@@ -67,9 +67,10 @@ describe("adminLinksFor", () => {
     expect(labels("CONTENT_EDITOR")).toEqual(["Products"]);
   });
 
-  it("gives sales managers Products and Enquiries, and super admins also the Audit log", () => {
+  it("gives each admin role the links for the screens it may use", () => {
     expect(labels("SALES_MANAGER")).toEqual(["Products", "Enquiries"]);
-    expect(labels("SUPER_ADMIN")).toEqual(["Products", "Enquiries", "Audit log"]);
+    expect(labels("ADMINISTRATOR")).toEqual(["Products", "Settings"]);
+    expect(labels("SUPER_ADMIN")).toEqual(["Products", "Enquiries", "Settings", "Audit log"]);
   });
 
   it("gives non-admin roles no links", () => {

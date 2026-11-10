@@ -61,6 +61,7 @@ export function can(role: Role, action: AdminAction): boolean {
 const ADMIN_LINKS: { href: string; label: string; action: AdminAction }[] = [
   { href: "/admin/products", label: "Products", action: "products.edit" },
   { href: "/admin/enquiries", label: "Enquiries", action: "enquiries.view" },
+  { href: "/admin/settings", label: "Settings", action: "settings.edit" },
   { href: "/admin/audit", label: "Audit log", action: "audit.view" },
 ];
 
