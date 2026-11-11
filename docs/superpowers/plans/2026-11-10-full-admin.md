@@ -238,6 +238,26 @@
 
 ---
 
+## Deviations as built
+
+Recorded after Task 9; the tasks above are the plan as written, this is what was built instead.
+
+- **Applications got `sortOrder`.** `ProductApplication.sortOrder` was added by a migration so the product form can keep the order rows were entered in.
+- **No `method="post"` on the product form.** The form uses a Server Action (`action={formAction}`); React sets the method itself, so the attribute from Task 4 was dropped.
+- **An update with no changes writes nothing.** `updateProduct` returns "No changes to save." and creates no audit row and no `updatedAt` change.
+- **Stale or malformed `updatedAt` counts as stale.** A missing, unparsable or older value returns the "changed by someone else" message.
+- **`changeOwnPassword` bypasses `requireAction` and is not audited.** It must work for a user who is only allowed to change their password (and any role), so it checks the session itself and writes no audit row.
+- **`recordAuditBestEffort` added.** Denied and rejected attempts are audited outside a transaction; a failed audit insert is logged and does not change the answer. Successful changes still audit inside their transaction.
+- **`DOCUMENT_KINDS` is not exported** from `document-actions.ts`: a `"use server"` file may export only async functions. For the same reason `STALE_PRODUCT_ERROR` moved from `edit-actions.ts` to `form-schema.ts` in Task 9 (the production build failed on it; nothing but the build catches this).
+- **R2 only tested against a mock.** No live bucket has been used.
+- **Nav links were added by each task** (Categories, Settings, Users, Audit log) in `ADMIN_LINKS` in `access.ts`, not all in Task 1.
+- **`STORAGE_DRIVER` is an enum with a `superRefine`** in `src/lib/env.ts` that requires the four R2 variables only for `r2`.
+- **Task 9 fixes found by running the admin in a browser:**
+  - The production build failed: `STALE_PRODUCT_ERROR` was exported from the `"use server"` file `edit-actions.ts`. It moved to `form-schema.ts`.
+  - The product list showed Publish, Unpublish, Archive and Restore buttons to a content editor (the server action refused them, but the controls should not render); `ProductActions` now takes `canPublish`.
+  - The admin nav overflowed the page by 124px at 375px for roles with six links; the list now wraps.
+  - After a forced password change the user was sent back to the change-password page: the router had cached "/admin/products redirects to /admin/change-password" from the sign-in landing, so `redirect()` from the action bounced. `changeOwnPassword` now returns `{ ok: true }` and the form does a full navigation to `/admin/products`. It also no longer asks Better Auth to `revokeOtherSessions` (that replaces the current session cookie as well); other sessions are deleted in the same transaction as clearing the flag, keeping the current one.
+
 ## Self-review notes
 
 - Spec coverage: §2 roles (Task 1), §3.1-3.3 products, import queue, categories (Tasks 4-5), §4 documents and R2 (Task 6), §5.1 settings (Task 7), §5.2 users (Tasks 2 and 8), §5.3 audit (Tasks 2-3), §7 error handling (Tasks 4, 6, 8), §8 testing (every task plus Task 9).
