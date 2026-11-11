@@ -48,8 +48,9 @@ test.describe("admin settings @catalogue-write", () => {
       await expect(page.getByText(/valid email|invalid|not a valid/i).first()).toBeVisible();
       expect(await storedRecipients("AROMA_CHEMICALS")).toEqual([one, two]);
 
-      // Careers is shown but disabled.
-      await expect(page.getByLabel("Careers applications")).toBeDisabled();
+      // Careers is an editable row like the others (empty until set).
+      await expect(page.getByLabel("Careers applications")).toBeEnabled();
+      await expect(page.getByLabel("Careers applications")).toHaveValue("");
     } finally {
       await clearRecipients();
     }

@@ -99,7 +99,18 @@ describe("saveRecipients", () => {
     expect(await db.auditLog.count()).toBe(0);
   });
 
-  it.each(["CAREERS", "NOPE", "", "__proto__"])("refuses type %j", async (type) => {
+  it("accepts the CAREERS type and stores it under its own key", async () => {
+    asRole("SUPER_ADMIN");
+    const result = await saveRecipients(null, recipientsForm("CAREERS", "hr@x.com"));
+    expect(result).toMatchObject({ ok: true, type: "CAREERS" });
+    expect((await getAllRecipients()).CAREERS).toEqual(["hr@x.com"]);
+    const rows = await db.auditLog.findMany();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ entityId: "notification.recipients.CAREERS", detail: { type: "CAREERS", count: 1 } });
+    expect(JSON.stringify(rows[0])).not.toContain("x.com");
+  });
+
+  it.each(["NOPE", "", "__proto__", "ADMIN"])("refuses type %j", async (type) => {
     asRole("SUPER_ADMIN");
     const result = await saveRecipients(null, recipientsForm(type, "a@x.com"));
     expect(result).toMatchObject({ ok: false });

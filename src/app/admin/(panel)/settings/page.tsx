@@ -13,6 +13,7 @@ const LABELS = {
   AROMA_CHEMICALS: "Aroma chemicals quotations",
   FLAVOURS: "Flavours enquiries",
   GENERAL: "General contact enquiries",
+  CAREERS: "Careers applications",
 } as const;
 
 export default async function AdminSettingsPage() {
@@ -32,13 +33,6 @@ export default async function AdminSettingsPage() {
           {RECIPIENT_TYPES.map((t) => (
             <RecipientsForm key={t} type={t} label={LABELS[t]} recipients={recipients[t]} />
           ))}
-          <RecipientsForm
-            type="CAREERS"
-            label="Careers applications"
-            recipients={[]}
-            disabled
-            note="Used when the careers section ships."
-          />
         </div>
       </section>
     </>
