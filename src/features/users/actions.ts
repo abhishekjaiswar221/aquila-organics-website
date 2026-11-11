@@ -6,7 +6,7 @@ import { APIError } from "better-auth/api";
 import { refresh } from "next/cache";
 import type { Prisma } from "@/generated/prisma/client";
 import { recordAudit, type AuditAction } from "@/features/admin/audit";
-import { ADMIN_HOME_PATH, ADMIN_LOGIN_PATH } from "@/features/admin/login";
+import { ADMIN_LOGIN_PATH } from "@/features/admin/login";
 import { generatePassword } from "@/features/users/password";
 import { parseChangePassword, parseCreateUser, parseRole, type UserFieldErrors } from "@/features/users/schema";
 import { createCredentialUser } from "@/lib/admin-seed";
@@ -197,18 +197,25 @@ export async function changeOwnPassword(_prev: UserFormState, formData: FormData
   if (!parsed.ok) return { ok: false, errors: parsed.errors };
 
   try {
-    // Better Auth verifies the current password, signs out every other session and keeps this one.
+    // Better Auth verifies the current password. It is told NOT to revoke other sessions: with that
+    // option it replaces this session too (new token, new cookie), and Next then re-renders the page
+    // with the old cookie, bouncing the user to the login page and back. Other sessions are removed
+    // below instead, and this session's cookie stays valid.
     await auth.api.changePassword({
       headers: requestHeaders,
-      body: { currentPassword: parsed.currentPassword, newPassword: parsed.newPassword, revokeOtherSessions: true },
+      body: { currentPassword: parsed.currentPassword, newPassword: parsed.newPassword, revokeOtherSessions: false },
     });
     await db.$transaction(async (tx) => {
       await tx.user.update({ where: { id: session.user.id }, data: { mustChangePassword: false } });
+      await tx.session.deleteMany({ where: { userId: session.user.id, NOT: { token: session.session.token } } });
     });
   } catch (err) {
     // A wrong current password and any other failure read the same: no oracle.
     if (!(err instanceof APIError)) console.error("[admin] password change failed:", err instanceof Error ? err.name : typeof err);
     return { ok: false, message: CHANGE_FAILED };
   }
-  redirect(ADMIN_HOME_PATH);
+  // No redirect(): the browser's router cached "/admin/products redirects to /admin/change-password" while
+  // the flag was set (the sign-in landing), so a soft redirect would bounce straight back here. The form
+  // does a full navigation to ADMIN_HOME_PATH instead.
+  return { ok: true, message: "Password changed." };
 }

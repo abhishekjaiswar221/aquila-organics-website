@@ -141,3 +141,156 @@ export async function deleteEnquiry(e: TestEnquiry): Promise<void> {
     await rm(path.join(E2E_STORAGE_ROOT, key), { force: true });
   }
 }
+
+export type StoredProduct = {
+  id: string;
+  slug: string;
+  name: string;
+  status: string;
+  verified: boolean;
+  description: string | null;
+  specifications: { label: string; value: string }[];
+  applications: string[];
+};
+
+/** A product with its specifications and applications, found by slug (null when absent). */
+export async function productBySlug(slug: string): Promise<StoredProduct | null> {
+  return withDb(async (c) => {
+    const { rows } = await c.query<Omit<StoredProduct, "specifications" | "applications">>(
+      `SELECT "id", "slug", "name", "status"::text AS "status", "verified", "description" FROM "product" WHERE "slug" = $1`,
+      [slug],
+    );
+    if (!rows[0]) return null;
+    const specs = await c.query<{ label: string; value: string }>(
+      `SELECT "label", "value" FROM "product_specification" WHERE "productId" = $1 ORDER BY "sortOrder", "createdAt"`,
+      [rows[0].id],
+    );
+    const apps = await c.query<{ name: string }>(
+      `SELECT "name" FROM "product_application" WHERE "productId" = $1 ORDER BY "sortOrder", "createdAt"`,
+      [rows[0].id],
+    );
+    return { ...rows[0], specifications: specs.rows, applications: apps.rows.map((a) => a.name) };
+  });
+}
+
+/** Removes a product (rows cascade) and the document files it owned. */
+export async function deleteProductWithFiles(idOrSlug: { id?: string; slug?: string }): Promise<void> {
+  const keys = await withDb(async (c) => {
+    const { rows } = await c.query<{ id: string }>(`SELECT "id" FROM "product" WHERE "id" = $1 OR "slug" = $2`, [
+      idOrSlug.id ?? randomUUID(),
+      idOrSlug.slug ?? "",
+    ]);
+    const out: string[] = [];
+    for (const r of rows) {
+      const docs = await c.query<{ storageKey: string }>(`SELECT "storageKey" FROM "product_document" WHERE "productId" = $1`, [r.id]);
+      out.push(...docs.rows.map((d) => d.storageKey));
+      await c.query(`DELETE FROM "product" WHERE "id" = $1`, [r.id]);
+    }
+    return out;
+  });
+  for (const key of keys) {
+    const file = path.resolve(E2E_STORAGE_ROOT, key);
+    if (path.dirname(file) === E2E_STORAGE_ROOT) await rm(file, { force: true });
+  }
+}
+
+export type StoredDocument = { id: string; kind: string; title: string };
+
+export async function documentsOf(productId: string): Promise<StoredDocument[]> {
+  return withDb(async (c) => {
+    const { rows } = await c.query<StoredDocument>(
+      `SELECT "id", "kind"::text AS "kind", "title" FROM "product_document" WHERE "productId" = $1 ORDER BY "createdAt"`,
+      [productId],
+    );
+    return rows;
+  });
+}
+
+export type StoredAudit = {
+  action: string;
+  actorRole: string;
+  entityType: string;
+  entityId: string | null;
+  outcome: string;
+  changedFields: string[];
+  detail: Record<string, unknown> | null;
+};
+
+/** Audit rows for one entity id, oldest first. */
+export async function auditRowsFor(entityId: string): Promise<StoredAudit[]> {
+  return withDb(async (c) => {
+    const { rows } = await c.query<StoredAudit>(
+      `SELECT "action", "actorRole", "entityType", "entityId", "outcome", "changedFields", "detail"
+       FROM "audit_log" WHERE "entityId" = $1 ORDER BY "at", "id"`,
+      [entityId],
+    );
+    return rows;
+  });
+}
+
+/** Inserts an audit row directly (a unique entityId per test keeps the viewer assertions deterministic). */
+export async function insertAuditRow(action: string, entityType: string, entityId: string): Promise<void> {
+  await withDb((c) =>
+    c.query(
+      `INSERT INTO "audit_log" ("id", "at", "actorRole", "action", "entityType", "entityId", "outcome", "changedFields")
+       VALUES ($1, now(), 'SUPER_ADMIN', $2, $3, $4, 'ok', ARRAY[]::text[])`,
+      [randomUUID(), action, entityType, entityId],
+    ),
+  );
+}
+
+export async function deleteAuditRowsFor(entityId: string): Promise<void> {
+  await withDb((c) => c.query(`DELETE FROM "audit_log" WHERE "entityId" = $1`, [entityId]));
+}
+
+export async function userIdByEmail(email: string): Promise<string | null> {
+  return withDb(async (c) => {
+    const { rows } = await c.query<{ id: string }>(`SELECT "id" FROM "user" WHERE "email" = $1`, [email]);
+    return rows[0]?.id ?? null;
+  });
+}
+
+/** Removes a throwaway user (sessions and accounts cascade; audit rows keep a null actor). */
+export async function deleteUserByEmail(email: string): Promise<void> {
+  await withDb((c) => c.query(`DELETE FROM "user" WHERE "email" = $1`, [email]));
+}
+
+/** Removes throwaway categories by exact name. */
+export async function deleteCategoriesNamed(...names: string[]): Promise<void> {
+  await withDb(async (c) => {
+    for (const name of names) {
+      await c.query(`UPDATE "product" SET "categoryId" = NULL WHERE "categoryId" IN (SELECT "id" FROM "category" WHERE "name" = $1)`, [name]);
+      await c.query(`DELETE FROM "category" WHERE "name" = $1`, [name]);
+    }
+  });
+}
+
+export async function createCategoryRow(name: string, slug: string): Promise<string> {
+  const id = randomUUID();
+  await withDb((c) =>
+    c.query(
+      `INSERT INTO "category" ("id", "name", "slug", "sortOrder", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, (SELECT COALESCE(MAX("sortOrder"), 0) + 1 FROM "category"), now(), now())`,
+      [id, name, slug],
+    ),
+  );
+  return id;
+}
+
+export async function setProductCategory(productId: string, categoryId: string): Promise<void> {
+  await withDb((c) => c.query(`UPDATE "product" SET "categoryId" = $2 WHERE "id" = $1`, [productId, categoryId]));
+}
+
+/** Recipients stored for an enquiry type (empty when unset). */
+export async function storedRecipients(type: string): Promise<unknown> {
+  return withDb(async (c) => {
+    const { rows } = await c.query<{ value: unknown }>(`SELECT "value" FROM "site_setting" WHERE "key" = $1`, [
+      `notification.recipients.${type}`,
+    ]);
+    return rows[0]?.value ?? null;
+  });
+}
+
+export async function clearRecipients(): Promise<void> {
+  await withDb((c) => c.query(`DELETE FROM "site_setting" WHERE "key" LIKE 'notification.recipients.%'`));
+}

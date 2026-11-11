@@ -11,6 +11,8 @@ type Props = {
   status: ProductStatus;
   verified: boolean;
   canVerify: boolean;
+  /** products.publish: publish, unpublish, archive and restore. */
+  canPublish: boolean;
 };
 
 function Message({ state }: { state: ProductFormState }) {
@@ -21,7 +23,7 @@ function Message({ state }: { state: ProductFormState }) {
 }
 
 /** Row actions: publish/unpublish/archive for both admin roles; verification for super admins. */
-export function ProductActions({ productId, productName, status, verified, canVerify }: Props) {
+export function ProductActions({ productId, productName, status, verified, canVerify, canPublish }: Props) {
   const [statusState, statusAction, statusPending] = useActionState(submitProductStatus, null);
   const [verifyState, verifyAction, verifyPending] = useActionState(submitProductVerified, null);
   const pending = statusPending || verifyPending;
@@ -40,10 +42,10 @@ export function ProductActions({ productId, productName, status, verified, canVe
   return (
     <div className="flex min-w-48 flex-col gap-2">
       <div className="flex flex-wrap gap-1.5">
-        {status !== "PUBLISHED" ? target("PUBLISHED", "Publish") : null}
-        {status === "PUBLISHED" ? target("DRAFT", "Unpublish") : null}
-        {status === "ARCHIVED" ? target("DRAFT", "Restore to draft") : null}
-        {status !== "ARCHIVED" ? target("ARCHIVED", "Archive") : null}
+        {canPublish && status !== "PUBLISHED" ? target("PUBLISHED", "Publish") : null}
+        {canPublish && status === "PUBLISHED" ? target("DRAFT", "Unpublish") : null}
+        {canPublish && status === "ARCHIVED" ? target("DRAFT", "Restore to draft") : null}
+        {canPublish && status !== "ARCHIVED" ? target("ARCHIVED", "Archive") : null}
         {canVerify ? (
           <form action={verifyAction}>
             <input type="hidden" name="productId" value={productId} />

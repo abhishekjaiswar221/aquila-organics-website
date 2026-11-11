@@ -6,6 +6,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { recordAudit } from "@/features/admin/audit";
 import {
   PUBLIC_PRODUCT_FIELDS,
+  STALE_PRODUCT_ERROR,
   changedProductFields,
   parseProductForm,
   type ProductFormData,
@@ -26,7 +27,6 @@ import { normalizeUuid } from "@/lib/uuid";
 
 export type ProductEditState = { ok: boolean; message: string; fieldErrors?: Record<string, string> } | null;
 
-export const STALE_PRODUCT_ERROR = "This product was changed by someone else. Reload and try again.";
 const FIX_FIELDS = "Fix the highlighted fields and try again.";
 const NOT_FOUND = "Product not found.";
 const FAILED = "The product could not be saved. Try again.";

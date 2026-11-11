@@ -8,7 +8,7 @@ export function AdminNav({ links }: { links: readonly { href: string; label: str
   const pathname = usePathname();
   return (
     <nav aria-label="Admin">
-      <ul className="flex gap-1">
+      <ul className="flex flex-wrap gap-1">
         {links.map((l) => {
           const current = pathname === l.href || pathname.startsWith(`${l.href}/`);
           return (

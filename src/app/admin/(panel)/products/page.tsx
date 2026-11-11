@@ -38,6 +38,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
   const imported = firstParam(sp.imported) === "1";
   const result = await listAdminProducts({ q: q || undefined, status, imported, page: pageParam(sp.page) });
   const canVerify = can(role, "products.verify");
+  const canPublish = can(role, "products.publish");
   const filtered = Boolean(q || status || imported);
 
   return (
@@ -162,6 +163,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
                       status={p.status}
                       verified={p.verified}
                       canVerify={canVerify}
+                      canPublish={canPublish}
                     />
                   </td>
                 </tr>

@@ -85,6 +85,13 @@ export const ADMIN_USERS = {
     role: "SUPER_ADMIN",
     roleLabel: "Super admin",
   },
+  administrator: {
+    id: id(0x304),
+    email: "test-administrator@admin.example.test",
+    password: "TEST-administrator-passphrase",
+    role: "ADMINISTRATOR",
+    roleLabel: "Administrator",
+  },
   salesManager: {
     id: id(0x302),
     email: "test-sales-manager@admin.example.test",

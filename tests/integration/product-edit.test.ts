@@ -25,7 +25,8 @@ vi.mock("@/features/admin/audit", async (importOriginal) => {
 
 const { auth } = await import("@/lib/auth");
 const { createCredentialUser } = await import("@/lib/admin-seed");
-const { createProduct, updateProduct, STALE_PRODUCT_ERROR } = await import("@/features/products/edit-actions");
+const { createProduct, updateProduct } = await import("@/features/products/edit-actions");
+const { STALE_PRODUCT_ERROR } = await import("@/features/products/form-schema");
 const { getProductForEdit } = await import("@/features/products/edit-queries");
 
 type Role = "SUPER_ADMIN" | "ADMINISTRATOR" | "SALES_MANAGER" | "SALES_EXECUTIVE" | "CONTENT_EDITOR" | "HR_MANAGER";

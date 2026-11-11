@@ -177,3 +177,6 @@ export type ProductSnapshot = Omit<ProductFormData, "casNormalized">;
 export function changedProductFields(before: ProductSnapshot, after: ProductSnapshot): ProductField[] {
   return PRODUCT_FIELDS.filter((field) => JSON.stringify(before[field]) !== JSON.stringify(after[field]));
 }
+
+/** Shown when a product was saved by someone else since the form loaded (not in the "use server" file: it may only export async functions). */
+export const STALE_PRODUCT_ERROR = "This product was changed by someone else. Reload and try again.";

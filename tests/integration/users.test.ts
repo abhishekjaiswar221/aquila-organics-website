@@ -158,8 +158,8 @@ describe("forced password change", () => {
     expect((await db.user.findUniqueOrThrow({ where: { id: u.id } })).mustChangePassword).toBe(true);
     expect(await sessionCount(u.id)).toBe(2);
 
-    const done = await changeOwnPassword(null, fd({ currentPassword: u.password, newPassword, confirm: newPassword })).catch((e: unknown) => e);
-    expect(digestOf(done)).toMatch(/^NEXT_REDIRECT;replace;\/admin\/products;/);
+    const done = await changeOwnPassword(null, fd({ currentPassword: u.password, newPassword, confirm: newPassword }));
+    expect(done).toEqual({ ok: true, message: "Password changed." });
     expect((await db.user.findUniqueOrThrow({ where: { id: u.id } })).mustChangePassword).toBe(false);
 
     asCookie(second);
