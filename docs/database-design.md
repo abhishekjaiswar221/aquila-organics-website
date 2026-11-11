@@ -16,6 +16,7 @@ erDiagram
   User ||--o{ Session : has
   User ||--o{ Account : has
   User |o--o{ EnquiryActivity : "acts in (SET NULL)"
+  User |o--o{ AuditLog : "acts in (SET NULL)"
   Category |o--o{ Product : "groups (SET NULL)"
   Product ||--o{ ProductSpecification : has
   Product ||--o{ ProductApplication : has
@@ -32,7 +33,7 @@ erDiagram
 
 | Enum | Values | Notes |
 |---|---|---|
-| `Role` | `SUPER_ADMIN`, `ADMINISTRATOR`, `SALES_MANAGER`, `SALES_EXECUTIVE`, `CONTENT_EDITOR`, `HR_MANAGER` | Only `SUPER_ADMIN` and `SALES_MANAGER` may use the admin in this sub-project (`src/lib/access.ts`). New users default to `CONTENT_EDITOR`, the least privileged, so no sign-up path can create an admin |
+| `Role` | `SUPER_ADMIN`, `ADMINISTRATOR`, `SALES_MANAGER`, `SALES_EXECUTIVE`, `CONTENT_EDITOR`, `HR_MANAGER` | `SUPER_ADMIN`, `ADMINISTRATOR`, `SALES_MANAGER` and `CONTENT_EDITOR` may use the admin, each limited by the permission table in `src/lib/access.ts` (see the README, "Roles") New users default to `CONTENT_EDITOR`, the least privileged, so no sign-up path can create an admin |
 | `ProductStatus` | `DRAFT`, `PUBLISHED`, `ARCHIVED` | Only `PUBLISHED` is ever shown publicly |
 | `EnquiryType` | `FRAGRANCES`, `AROMA_CHEMICALS`, `FLAVOURS`, `GENERAL`, `CAREERS` | `CAREERS` is reserved for the careers sub-project |
 | `EnquiryStatus` | `NEW`, `ASSIGNED`, `CONTACTED`, `QUOTATION_SENT`, `NEGOTIATION`, `WON`, `LOST` | Changed in the admin; every change writes an activity row |
@@ -47,7 +48,7 @@ Generated with the Better Auth CLI for the Prisma adapter, then hand-edited: `ro
 
 | Model (table) | Purpose | Keys and indexes |
 |---|---|---|
-| `User` (`user`) | Admin accounts: `name`, `email`, `emailVerified`, `image`, `role` | `email` unique |
+| `User` (`user`) | Admin accounts: `name`, `email`, `emailVerified`, `image`, `role`, `disabled` (default false: a disabled user cannot sign in and existing sessions are refused), `mustChangePassword` (default false: set for a generated one-time password; the admin shows only the change-password page until it is cleared) | `email` unique |
 | `Session` (`session`) | Signed-in sessions: `token`, `expiresAt`, `ipAddress`, `userAgent` | `token` unique; index on `userId` |
 | `Account` (`account`) | Credentials per provider; the email/password hash lives in `password` | index on `userId` |
 | `Verification` (`verification`) | Better Auth verification tokens | index on `identifier` |
@@ -59,7 +60,7 @@ Generated with the Better Auth CLI for the Prisma adapter, then hand-edited: `ro
 | `Category` (`category`) | `name`, `slug`, `sortOrder` | `slug` unique |
 | `Product` (`product`) | `name`, `slug`, `code`, `casNumber`, `casNormalized`, `description`, `status`, `publishedAt`, `seoTitle`, `seoDescription`, `sourceNote` (provenance, internal only), `verified` | `slug` unique; `code` unique (optional); btree indexes on `casNormalized`, `status`, `categoryId`; trigram GIN indexes on `name` and `code` |
 | `ProductSpecification` (`product_specification`) | `label`, `value`, `sortOrder` | index on `productId` |
-| `ProductApplication` (`product_application`) | `name` | index on `productId` |
+| `ProductApplication` (`product_application`) | `name`, `sortOrder` (default 0; the product form saves rows in the order shown) | index on `productId` |
 | `ProductDocument` (`product_document`) | `kind`, `title`, `mimeType`, `storageKey` (private storage location) | `storageKey` unique; index on `productId` |
 
 ### Enquiries
@@ -77,6 +78,7 @@ Generated with the Better Auth CLI for the Prisma adapter, then hand-edited: `ro
 |---|---|---|
 | `SiteSetting` (`site_setting`) | Key/value JSON settings, e.g. `notification.recipients.AROMA_CHEMICALS` | `key` unique |
 | `RateLimitHit` (`rate_limit_hit`) | Fixed-window counters: `key`, `windowStart`, `count` | (`key`, `windowStart`) unique; index on `windowStart` |
+| `AuditLog` (`audit_log`) | Append-only record of admin changes: `at`, `actorId` (nullable FK to `User`), `actorRole`, `action` (e.g. `product.update`, see `AuditAction` in `src/features/admin/audit.ts`), `entityType`, `entityId`, `outcome` (`ok`, `denied`, `rejected`), `changedFields` (text array of field names), `detail` (JSON of ids, enum values and counts only; never emails, names, passwords or free text, enforced by `sanitiseAuditDetail`). No `createdAt`/`updatedAt`: `at` is the time | indexes on `at`, `action`, (`entityType`, `entityId`) |
 
 ## Indexes
 
@@ -108,6 +110,7 @@ All indexes are declared in the schema, so Prisma never treats them as drift.
 |---|---|---|
 | `Session.userId`, `Account.userId` | CASCADE | Deleting a user removes their sessions and credentials |
 | `EnquiryActivity.actorId` | SET NULL | Deleting a user keeps the activity rows they wrote, without an actor |
+| `AuditLog.actorId` | SET NULL | Deleting a user keeps the audit rows they caused, without an actor (the role is kept in `actorRole`) |
 | `Product.categoryId` | SET NULL | Deleting a category leaves its products uncategorised |
 | `ProductSpecification`, `ProductApplication`, `ProductDocument` `.productId` | CASCADE | Deleting a product removes its specifications, applications and document rows |
 | `EnquiryItem.productId` | SET NULL | Deleting a product keeps enquiry lines readable through `productNameSnapshot` and `casSnapshot` |
@@ -164,7 +167,7 @@ Migration SQL is stored with LF line endings (`.gitattributes`: `prisma/migratio
 
 ## Known gaps
 
-- **No audit table yet.** Product status and verification changes are recorded only as a structured server log line (`[admin.audit] {...}`, `src/features/admin/audit.ts`). Enquiry changes are recorded in `EnquiryActivity`. A database audit table is planned for the full-admin sub-project.
+- **Audit log is not pruned or exported.** `AuditLog` rows accumulate; there is no retention job. Changing your own password is not audited, and denied and rejected attempts use `recordAuditBestEffort`, which logs instead of throwing when that audit insert fails (successful changes are audited in the same transaction and roll back with it).
 - **Rate-limit rows are never pruned.** Old `RateLimitHit` rows accumulate. Until a cleanup job exists, periodically delete rows whose `windowStart` is older than a day (`DELETE FROM "rate_limit_hit" WHERE "windowStart" < now() - interval '2 days'`).
 - **No deletion of enquiries or users.** There is no admin feature, script or retention job for deleting enquiries, attachments or users, and retention periods are not yet set (the privacy notice says "to be confirmed by Aquila"). When this is built it must also remove the stored files and consider keeping the activity log.
 - **References stop at 999,999 per year.** Allocation throws past that.

@@ -13,10 +13,11 @@ export function pageParam(value: Raw): number {
 }
 
 /** `${path}?q=..&status=..&page=..`, omitting empty values and page 1. */
-export function listHref(path: string, params: { q?: string; status?: string; page?: number }): string {
+export function listHref(path: string, params: { q?: string; status?: string; page?: number; imported?: boolean }): string {
   const sp = new URLSearchParams();
   if (params.q) sp.set("q", params.q);
   if (params.status) sp.set("status", params.status);
+  if (params.imported) sp.set("imported", "1");
   if (params.page && params.page > 1) sp.set("page", String(params.page));
   const qs = sp.toString();
   return qs ? `${path}?${qs}` : path;

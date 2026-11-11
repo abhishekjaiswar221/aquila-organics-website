@@ -12,6 +12,7 @@ Built so far:
   - The aroma chemicals catalogue (`/aroma-chemicals`): search by name, product code or CAS number, category filter, sorting, pagination, product pages and document downloads.
   - A multi-product request for quotation (`/rfq`) with attachments, a confirmation page and a draft privacy notice (`/privacy`).
   - A minimal admin (`/admin`) for publishing products and handling enquiries.
+- **Sub-project 4 (full admin):** product create and edit (with re-verification), categories and the imported-products review filter, product documents, notification recipients, user management with forced password change, and a database audit log. See "Admin" below.
   - `sitemap.xml` and `robots.txt`.
 - **Sub-project 3 (core business content pages):**
   - Fragrances and Flavours: two overviews and eleven application pages (`/fragrances/...`, `/flavours/...`).
@@ -22,11 +23,12 @@ Built so far:
 
 Not built yet:
 
-- **Admin.** There is no product editing, user management, settings screen or audit table. Admins can verify, publish, unpublish and archive products, and view enquiries, change their status and download their attachments. Notification recipients are set directly in the `SiteSetting` table.
+- **Admin extras.** Not built: invitation emails (a super admin hands over a one-time password), a content CMS for page copy, deleting products or users, and audit-log retention or export.
 - **Storage and email.** Both use local development drivers only (`STORAGE_DRIVER=local`, `EMAIL_DRIVER=dev`):
   - Uploaded files go to `./storage/uploads`.
   - "Sent" emails are written as JSON files to `./storage/outbox`, and nothing leaves the machine.
-  - There is no Cloudflare R2 or Resend integration yet. Do not enable a real email provider before reading "Email abuse limits" below.
+  - A Cloudflare R2 storage driver exists (`STORAGE_DRIVER=r2` with `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` and `R2_BUCKET`, all required only for that driver; the server refuses to start without them). **It has only been tested against a mocked client and has not been exercised against a live R2 account.** Verify upload, download and delete against a real bucket before relying on it.
+  - There is no Resend integration yet. Do not enable a real email provider before reading "Email abuse limits" below.
 - **Content.** No product is published: the 20 legacy products import as unverified drafts. The privacy notice needs legal review. See `docs/content-verification.md` for the full list.
 
 Careers, the resources blog and the full admin and content management are later sub-projects (see `docs/sitemap.md`). Until the careers pages exist, the old `/careers` URL answers 404 (`docs/url-migration.md`).
@@ -72,7 +74,7 @@ The Prisma CLI, the scripts and the test configs read `.env`. Next.js reads it a
 | `NEXT_PUBLIC_SITE_URL` | Public base URL for canonical links, JSON-LD, the sitemap and robots.txt. It is inlined at build time, so rebuild after changing it. If it is unset in production, the site falls back to `http://localhost:3000` and logs one warning per process (`next start` once; `next build` once per build worker). The build does not fail, so set it for every production build |
 | `DATABASE_URL`, `DATABASE_URL_TEST` | Development and test databases. The test URL must name a different database (the e2e suite also requires a name ending in `_test`) |
 | `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` | Session signing secret (at least 32 random characters, e.g. `openssl rand -base64 32`) and the site's own URL |
-| `STORAGE_DRIVER`, `STORAGE_LOCAL_ROOT` | `local` is the only driver. The root is optional (default `./storage/uploads`) |
+| `STORAGE_DRIVER`, `STORAGE_LOCAL_ROOT` | `local` (default root `./storage/uploads`, optional) or `r2`. With `r2`, also set `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` (not yet tested against a live account) |
 | `EMAIL_DRIVER` | `dev` is the only driver |
 | `RATE_LIMIT_SALT` | Salt for the hashed IP and email keys used by the rate limits |
 | `AUTH_IP_HEADER`, `AUTH_TRUSTED_PROXIES` | Optional. How the client IP is read behind a proxy (see "Deployment" below) |
@@ -95,7 +97,7 @@ This applies every migration in `prisma/migrations/` to the development database
 npm run seed:admin
 ```
 
-This creates the first `SUPER_ADMIN` from `ADMIN_EMAIL` / `ADMIN_PASSWORD`, read from the environment or `.env`. The password must be at least 12 characters. The script is idempotent: an existing user with that email is promoted to `SUPER_ADMIN` and keeps their password. Add `-- --reset-password` to change the password, which also signs out their sessions. There is no public sign-up and no user-management screen yet.
+This creates the first `SUPER_ADMIN` from `ADMIN_EMAIL` / `ADMIN_PASSWORD`, read from the environment or `.env`. The password must be at least 12 characters. The script is idempotent: an existing user with that email is promoted to `SUPER_ADMIN` and keeps their password. Add `-- --reset-password` to change the password, which also signs out their sessions. There is no public sign-up; further users are added by a super admin in `/admin/users` (see "User onboarding").
 
 ### 6. Legacy products
 
@@ -124,7 +126,36 @@ npm run dev          # http://localhost:3000
 2. Sign in with the seeded account. You return to the page you asked for, or to `/admin/products` by default.
 3. Sign out from the admin header.
 
-Only `SUPER_ADMIN` and `SALES_MANAGER` may use the admin. Any other role gets a 403 page. Only a `SUPER_ADMIN` can mark products verified. Sign-in is limited to 5 attempts per minute per client IP. Every page, action and download checks the session and role on the server. The proxy's redirect of signed-out requests is only a convenience.
+Four roles may use the admin (below). Any other role gets a 403 page. Sign-in is limited to 5 attempts per minute per client IP. Every page, action and download checks the session and role on the server (`requireAction()` in `src/lib/permissions.ts`). The proxy's redirect of signed-out requests is only a convenience. A disabled user cannot sign in and an existing session stops working at once; a user holding a one-time password can reach only the change-password page and sign-out.
+
+### Roles
+
+`can(role, action)` in `src/lib/access.ts` is the single permission table; the navigation shows only what a role may open.
+
+| Action | Super admin | Administrator | Sales manager | Content editor |
+|---|---|---|---|---|
+| Enquiries: view and update | yes | no | yes | no |
+| Products and categories: create and edit | yes | yes | yes | yes |
+| Products: publish, unpublish, archive | yes | yes | yes | no |
+| Products: mark verified | yes | no | no | no |
+| Product documents: upload and delete | yes | yes | no | yes |
+| Settings (notification recipients) | yes | yes | no | no |
+| Users | yes | no | no | no |
+| Audit log | yes | no | no | no |
+
+`SALES_EXECUTIVE` and `HR_MANAGER` exist in the schema but have no admin access yet. Editing a published product's public fields (anything but the internal source note) unpublishes it and clears its verified flag in the same transaction, so a super admin must verify it again before it can go live. Two people editing the same product: the second save is refused ("This product was changed by someone else").
+
+### User onboarding
+
+A super admin opens `/admin/users`, enters a name, email and role, and presses Create user. The page then shows a generated one-time password (20 characters, from a CSPRNG) **once**: "Shown once. Copy it now." It lives only in that page's state and is never stored, logged or audited. Hand it to the person over a secure channel. At first sign-in they are sent to `/admin/change-password` and cannot open anything else until they choose their own password (at least 12 characters); their other sessions are signed out. "Reset password" issues a new one-time password and signs the user out everywhere. "Disable" signs a user out immediately and blocks sign-in until they are enabled again. Refused: disabling or demoting yourself, and removing the last active super admin.
+
+### Audit log
+
+Every admin change (product create, update, status, verification and re-verification; categories; documents; recipients; user changes; enquiry status) writes a row to `audit_log` inside the same transaction as the change, so a failed audit write rolls the change back. Rows hold the actor, role, action, entity type and id, outcome (`ok`, `denied`, `rejected`), changed field names and a few ids or counts. They never hold passwords, email addresses, names or free text. A super admin reads it at `/admin/audit` (filter by action, entity type and date; 50 rows per page; times are UTC). Not covered: changing your own password (`changeOwnPassword` is not audited), and rows are never pruned.
+
+### Storage and Cloudflare R2
+
+Uploaded product documents and enquiry attachments go through one storage interface. `STORAGE_DRIVER=local` (default) writes to `./storage/uploads`. For Cloudflare R2 set `STORAGE_DRIVER=r2` plus `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` and `R2_BUCKET`; the server refuses to start if any is missing. Create a private bucket (no public access, files are served through the app) and an API token limited to that bucket with object read and write. **The R2 driver is untested against a live account.** It is covered only by unit tests with a mocked S3 client. Before relying on it, upload, download and delete a document against a real bucket (a staging bucket first). Existing local files are not migrated when the driver changes.
 
 ## Scripts
 

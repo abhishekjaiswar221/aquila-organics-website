@@ -4,17 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-const LINKS = [
-  { href: "/admin/products", label: "Products" },
-  { href: "/admin/enquiries", label: "Enquiries" },
-] as const;
-
-export function AdminNav() {
+export function AdminNav({ links }: { links: readonly { href: string; label: string }[] }) {
   const pathname = usePathname();
   return (
     <nav aria-label="Admin">
-      <ul className="flex gap-1">
-        {LINKS.map((l) => {
+      <ul className="flex flex-wrap gap-1">
+        {links.map((l) => {
           const current = pathname === l.href || pathname.startsWith(`${l.href}/`);
           return (
             <li key={l.href}>

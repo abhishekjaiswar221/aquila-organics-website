@@ -224,3 +224,18 @@ describe("resetDb", () => {
     expect(await db.enquiry.count()).toBe(0);
   });
 });
+
+describe("AuditLog", () => {
+  beforeEach(resetDb);
+
+  it("keeps the row but clears the actor when the user is deleted", async () => {
+    const user = await db.user.create({ data: { name: "A", email: "audit@example.test", role: "SUPER_ADMIN" } });
+    const row = await db.auditLog.create({
+      data: { actorId: user.id, actorRole: "SUPER_ADMIN", action: "product.create", entityType: "product", outcome: "ok" },
+    });
+    await db.user.delete({ where: { id: user.id } });
+    const after = await db.auditLog.findUniqueOrThrow({ where: { id: row.id } });
+    expect(after.actorId).toBeNull();
+    expect(after.changedFields).toEqual([]);
+  });
+});

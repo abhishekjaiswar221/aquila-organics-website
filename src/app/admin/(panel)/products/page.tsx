@@ -15,7 +15,7 @@ import {
 import { adminMetadata } from "@/features/admin/metadata";
 import { firstParam, listHref, pageParam } from "@/features/admin/search-params";
 import { PRODUCT_STATUSES, isProductStatus, listAdminProducts } from "@/features/products/admin-queries";
-import { requireRole } from "@/lib/permissions";
+import { can, requireAction } from "@/lib/permissions";
 
 // Per request (session + database), no `use cache`: a change shows at once.
 export const instant = false;
@@ -30,14 +30,16 @@ function truncate(text: string, max: number): string {
 }
 
 export default async function AdminProductsPage({ searchParams }: PageProps<"/admin/products">) {
-  const { role } = await requireRole();
+  const { role } = await requireAction("products.edit");
   const sp = await searchParams;
   const q = firstParam(sp.q).trim();
   const rawStatus = firstParam(sp.status);
   const status = isProductStatus(rawStatus) ? rawStatus : undefined;
-  const result = await listAdminProducts({ q: q || undefined, status, page: pageParam(sp.page) });
-  const canVerify = role === "SUPER_ADMIN";
-  const filtered = Boolean(q || status);
+  const imported = firstParam(sp.imported) === "1";
+  const result = await listAdminProducts({ q: q || undefined, status, imported, page: pageParam(sp.page) });
+  const canVerify = can(role, "products.verify");
+  const canPublish = can(role, "products.publish");
+  const filtered = Boolean(q || status || imported);
 
   return (
     <>
@@ -46,7 +48,29 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
         {filtered ? " match" : " in the catalogue (all statuses)"}
       </PageHeader>
 
+      <p className="mt-4">
+        <Link href="/admin/products/new" className={buttonCls}>
+          New product
+        </Link>
+      </p>
+
+      <p className="mt-4 text-sm">
+        {imported ? (
+          <>
+            Showing imported products awaiting review.{" "}
+            <Link href={PATH} className={linkCls}>
+              Show all products
+            </Link>
+          </>
+        ) : (
+          <Link href={`${PATH}?imported=1`} className={linkCls}>
+            Imported, awaiting review
+          </Link>
+        )}
+      </p>
+
       <form method="get" action={PATH} className="mt-6 grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto] sm:items-end">
+        {imported ? <input type="hidden" name="imported" value="1" /> : null}
         <div className="min-w-0">
           <label htmlFor="product-q" className={labelCls}>
             Search name, code or CAS
@@ -130,12 +154,16 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
                     {p.sourceNote ? <span title={p.sourceNote}>{truncate(p.sourceNote, NOTE_LENGTH)}</span> : "\u{2014}"}
                   </td>
                   <td className={tdCls}>
+                    <Link href={`/admin/products/${p.id}/edit`} className={`${linkCls} mb-2 inline-block`}>
+                      Edit<span className="sr-only"> {p.name || p.slug}</span>
+                    </Link>
                     <ProductActions
                       productId={p.id}
                       productName={p.name}
                       status={p.status}
                       verified={p.verified}
                       canVerify={canVerify}
+                      canPublish={canPublish}
                     />
                   </td>
                 </tr>
@@ -148,7 +176,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
       <Pagination
         page={result.page}
         pageCount={result.pageCount}
-        hrefFor={(page) => listHref(PATH, { q, status, page })}
+        hrefFor={(page) => listHref(PATH, { q, status, imported, page })}
       />
     </>
   );

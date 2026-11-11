@@ -21,6 +21,7 @@
     "content:report": "tsx scripts/content-report.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1165.0",
     "@base-ui/react": "^1.9.0",
     "@hookform/resolvers": "^7.0.3",
     "@prisma/adapter-pg": "^7.10.1",

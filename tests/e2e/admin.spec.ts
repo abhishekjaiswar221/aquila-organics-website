@@ -292,9 +292,12 @@ test.describe("admin: access control", () => {
     expect(page.url()).not.toContain("evil");
   });
 
-  test("a content editor is refused with the 403 page everywhere in the admin", async ({ page, request }) => {
+  test("a content editor reaches products but is refused with the 403 page on enquiries", async ({ page, request }) => {
     await signInViaApi(page, contentEditor);
-    for (const path of ["/admin", "/admin/products", "/admin/enquiries"]) {
+    await page.goto("/admin/products");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Products");
+    await expect(page.getByRole("link", { name: "Enquiries" })).toHaveCount(0);
+    for (const path of ["/admin/enquiries"]) {
       await page.goto(path);
       await expect(page.getByRole("heading", { level: 1 })).toHaveText("You do not have access to the admin");
       await expect(page.locator("main")).not.toContainText(DRAFT.name);

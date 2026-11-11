@@ -74,17 +74,22 @@ enum Unit {
 // The app models below use the same UUID default.
 
 model User {
-  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name          String
-  email         String
-  emailVerified Boolean           @default(false)
-  image         String?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  role          Role              @default(CONTENT_EDITOR)
-  sessions      Session[]
-  accounts      Account[]
-  activities    EnquiryActivity[]
+  id                 String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name               String
+  email              String
+  emailVerified      Boolean           @default(false)
+  image              String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  role               Role              @default(CONTENT_EDITOR)
+  /// A disabled user cannot sign in, and existing sessions stop working.
+  disabled           Boolean           @default(false)
+  /// Set for a generated one-time password; the admin forces a password change.
+  mustChangePassword Boolean           @default(false)
+  auditLogs          AuditLog[]
+  sessions           Session[]
+  accounts           Account[]
+  activities         EnquiryActivity[]
 
   @@unique([email])
   @@map("user")
@@ -209,6 +214,7 @@ model ProductApplication {
   productId String   @db.Uuid
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   name      String
+  sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -331,6 +337,30 @@ model SiteSetting {
   updatedAt DateTime @updatedAt
 
   @@map("site_setting")
+}
+
+/// One row per admin action. Never holds passwords, email addresses, names or
+/// free text: ids, enum values, field names and counts only.
+model AuditLog {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  at            DateTime @default(now())
+  /// Null when the actor was deleted later.
+  actorId       String?  @db.Uuid
+  actor         User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actorRole     String
+  /// e.g. product.update (see AuditAction in src/features/admin/audit.ts).
+  action        String
+  entityType    String
+  entityId      String?
+  /// ok | denied | rejected
+  outcome       String
+  changedFields String[] @default([])
+  detail        Json?
+
+  @@index([at])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@map("audit_log")
 }
 
 model RateLimitHit {

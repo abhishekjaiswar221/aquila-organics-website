@@ -1,11 +1,18 @@
 import { z } from "zod";
 
+const R2_KEYS = ["R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET"] as const;
+
 // Server-only secrets and config. Never expose any of these as NEXT_PUBLIC_*.
 export const secretEnvSchema = z.object({
   DATABASE_URL: z.string().min(1),
   BETTER_AUTH_SECRET: z.string().min(32),
   BETTER_AUTH_URL: z.url(),
-  STORAGE_DRIVER: z.literal("local"),
+  STORAGE_DRIVER: z.enum(["local", "r2"]),
+  // Cloudflare R2 (S3-compatible). Required only when STORAGE_DRIVER=r2 (checked below).
+  R2_ACCOUNT_ID: z.string().trim().optional(),
+  R2_ACCESS_KEY_ID: z.string().trim().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().trim().optional(),
+  R2_BUCKET: z.string().trim().optional(),
   // Optional root directory for the local storage driver (default ./storage/uploads).
   // The e2e suite points it at its own fixture directory.
   STORAGE_LOCAL_ROOT: z.string().trim().min(1).optional(),
@@ -32,6 +39,11 @@ export const secretEnvSchema = z.object({
     )
     .pipe(z.array(z.union([z.ipv4(), z.ipv6(), z.cidrv4(), z.cidrv6()])))
     .optional(),
+}).superRefine((value, ctx) => {
+  if (value.STORAGE_DRIVER !== "r2") return;
+  for (const key of R2_KEYS) {
+    if (!value[key]) ctx.addIssue({ code: "custom", path: [key], message: "Required when STORAGE_DRIVER=r2" });
+  }
 });
 
 export type Env = z.infer<typeof secretEnvSchema>;

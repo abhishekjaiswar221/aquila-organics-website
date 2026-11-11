@@ -2,6 +2,7 @@ import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import type { ProductStatus } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
+import { IMPORT_NOTE_PREFIX } from "@/features/products/import-marker";
 import { classifyQuery } from "@/lib/search";
 
 /*
@@ -27,7 +28,8 @@ export type AdminProductRow = {
   updatedAt: Date;
 };
 
-export type AdminProductFilter = { q?: string; status?: ProductStatus; page?: number };
+/** imported: only DRAFT products still carrying the legacy-import note (the review queue). */
+export type AdminProductFilter = { q?: string; status?: ProductStatus; page?: number; imported?: boolean };
 
 export type AdminProductList = {
   items: AdminProductRow[];
@@ -71,7 +73,11 @@ export function normalizePage(page: number | undefined): number {
 export async function listAdminProducts(filter: AdminProductFilter): Promise<AdminProductList> {
   const page = normalizePage(filter.page);
   const where: Prisma.ProductWhereInput = {
-    AND: [searchWhere(filter.q), isProductStatus(filter.status) ? { status: filter.status } : {}],
+    AND: [
+      searchWhere(filter.q),
+      isProductStatus(filter.status) ? { status: filter.status } : {},
+      filter.imported ? { status: "DRAFT", sourceNote: { startsWith: IMPORT_NOTE_PREFIX } } : {},
+    ],
   };
   const [total, rows] = await Promise.all([
     db.product.count({ where }),
