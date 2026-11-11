@@ -26,7 +26,8 @@ Not built yet:
 - **Storage and email.** Both use local development drivers only (`STORAGE_DRIVER=local`, `EMAIL_DRIVER=dev`):
   - Uploaded files go to `./storage/uploads`.
   - "Sent" emails are written as JSON files to `./storage/outbox`, and nothing leaves the machine.
-  - There is no Cloudflare R2 or Resend integration yet. Do not enable a real email provider before reading "Email abuse limits" below.
+  - A Cloudflare R2 storage driver exists (`STORAGE_DRIVER=r2` with `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` and `R2_BUCKET`, all required only for that driver; the server refuses to start without them). **It has only been tested against a mocked client and has not been exercised against a live R2 account.** Verify upload, download and delete against a real bucket before relying on it.
+  - There is no Resend integration yet. Do not enable a real email provider before reading "Email abuse limits" below.
 - **Content.** No product is published: the 20 legacy products import as unverified drafts. The privacy notice needs legal review. See `docs/content-verification.md` for the full list.
 
 Careers, the resources blog and the full admin and content management are later sub-projects (see `docs/sitemap.md`). Until the careers pages exist, the old `/careers` URL answers 404 (`docs/url-migration.md`).
@@ -72,7 +73,7 @@ The Prisma CLI, the scripts and the test configs read `.env`. Next.js reads it a
 | `NEXT_PUBLIC_SITE_URL` | Public base URL for canonical links, JSON-LD, the sitemap and robots.txt. It is inlined at build time, so rebuild after changing it. If it is unset in production, the site falls back to `http://localhost:3000` and logs one warning per process (`next start` once; `next build` once per build worker). The build does not fail, so set it for every production build |
 | `DATABASE_URL`, `DATABASE_URL_TEST` | Development and test databases. The test URL must name a different database (the e2e suite also requires a name ending in `_test`) |
 | `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` | Session signing secret (at least 32 random characters, e.g. `openssl rand -base64 32`) and the site's own URL |
-| `STORAGE_DRIVER`, `STORAGE_LOCAL_ROOT` | `local` is the only driver. The root is optional (default `./storage/uploads`) |
+| `STORAGE_DRIVER`, `STORAGE_LOCAL_ROOT` | `local` (default root `./storage/uploads`, optional) or `r2`. With `r2`, also set `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` (not yet tested against a live account) |
 | `EMAIL_DRIVER` | `dev` is the only driver |
 | `RATE_LIMIT_SALT` | Salt for the hashed IP and email keys used by the rate limits |
 | `AUTH_IP_HEADER`, `AUTH_TRUSTED_PROXIES` | Optional. How the client IP is read behind a proxy (see "Deployment" below) |

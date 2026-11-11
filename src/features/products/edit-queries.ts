@@ -57,7 +57,18 @@ export async function getProductForEdit(id: string): Promise<ProductEditModel | 
   };
 }
 
-export type CategoryOption = { id: string; name: string };
+export type ProductDocumentRow = { id: string; kind: "DATASHEET" | "SDS" | "OTHER"; title: string };
+
+/** Documents of a product for the admin panel. Never includes the storage key. */
+export async function listProductDocuments(productId: string): Promise<ProductDocumentRow[]> {
+  return db.productDocument.findMany({
+    where: { productId },
+    select: { id: true, kind: true, title: true },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+}
+
+export type CategoryOption ={ id: string; name: string };
 
 /** Existing categories for the form's select (category management lives elsewhere). */
 export async function listCategoryOptions(): Promise<CategoryOption[]> {

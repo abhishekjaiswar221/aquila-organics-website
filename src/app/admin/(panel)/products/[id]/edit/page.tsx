@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ProductDocuments } from "@/components/admin/product-documents";
 import { ProductForm } from "@/components/admin/product-form";
 import { Badge, PageHeader, linkCls } from "@/components/admin/ui";
 import { adminMetadata } from "@/features/admin/metadata";
 import { updateProduct } from "@/features/products/edit-actions";
-import { getProductForEdit, listCategoryOptions } from "@/features/products/edit-queries";
-import { requireAction } from "@/lib/permissions";
+import { getProductForEdit, listCategoryOptions, listProductDocuments } from "@/features/products/edit-queries";
+import { can, requireAction } from "@/lib/permissions";
 
 // Per request (session + database), no `use cache`.
 export const instant = false;
@@ -14,11 +15,13 @@ export const metadata = adminMetadata("Edit product");
 const STATUS_LABELS = { DRAFT: "Draft", PUBLISHED: "Published", ARCHIVED: "Archived" } as const;
 
 export default async function EditProductPage({ params }: PageProps<"/admin/products/[id]/edit">) {
-  await requireAction("products.edit");
+  const { role } = await requireAction("products.edit");
   const { id } = await params;
   const product = await getProductForEdit(id);
   if (!product) notFound();
   const categories = await listCategoryOptions();
+  const canManageDocuments = can(role, "documents.manage");
+  const documents = canManageDocuments ? await listProductDocuments(product.id) : [];
   return (
     <>
       <PageHeader title="Edit product">
@@ -32,6 +35,7 @@ export default async function EditProductPage({ params }: PageProps<"/admin/prod
         <span className="text-muted-foreground">{product.verified ? "Verified" : "Not verified"}</span>
       </p>
       <ProductForm action={updateProduct} categories={categories} product={product} />
+      {canManageDocuments ? <ProductDocuments productId={product.id} documents={documents} /> : null}
     </>
   );
 }

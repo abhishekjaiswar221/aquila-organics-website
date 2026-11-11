@@ -32,6 +32,31 @@ describe("parseEnv", () => {
     expect(() => parseEnv({ ...valid, STORAGE_DRIVER: "s3" })).toThrowError(/STORAGE_DRIVER/);
   });
 
+  it("requires the four R2 variables only when STORAGE_DRIVER=r2", () => {
+    const r2 = {
+      R2_ACCOUNT_ID: "acct",
+      R2_ACCESS_KEY_ID: "key-id",
+      R2_SECRET_ACCESS_KEY: "super-secret-value",
+      R2_BUCKET: "bucket",
+    };
+    expect(parseEnv({ ...valid, STORAGE_DRIVER: "r2", ...r2 }).R2_BUCKET).toBe("bucket");
+    expect(parseEnv(valid).R2_BUCKET).toBeUndefined();
+    expect(() => parseEnv({ ...valid, STORAGE_DRIVER: "r2" })).toThrowError(
+      /R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET/,
+    );
+    const { R2_SECRET_ACCESS_KEY: _omit, ...partial } = r2;
+    void _omit;
+    let message = "";
+    try {
+      parseEnv({ ...valid, STORAGE_DRIVER: "r2", ...partial });
+    } catch (err) {
+      message = (err as Error).message;
+    }
+    expect(message).toMatch(/R2_SECRET_ACCESS_KEY/);
+    expect(message).not.toMatch(/R2_BUCKET|acct|key-id/);
+    expect(() => parseEnv({ ...valid, STORAGE_DRIVER: "r2", ...r2, R2_BUCKET: "  " })).toThrowError(/R2_BUCKET/);
+  });
+
   it("keeps secrets out of NEXT_PUBLIC_ keys", () => {
     const keys = Object.keys(secretEnvSchema.shape);
     expect(keys.filter((k) => k.startsWith("NEXT_PUBLIC_"))).toEqual([]);
