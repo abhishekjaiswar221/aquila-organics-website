@@ -49,6 +49,8 @@ export async function createCredentialUser(input: {
   password: string;
   role: Role;
   name?: string;
+  /** A generated one-time password: the admin forces a change at first sign-in. */
+  mustChangePassword?: boolean;
 }): Promise<{ id: string }> {
   const { email, password } = parseSeedInput(input);
   const ctx = await auth.$context;
@@ -59,15 +61,22 @@ export async function createCredentialUser(input: {
       name: input.name ?? email.split("@")[0],
       emailVerified: true,
       role: input.role,
+      mustChangePassword: input.mustChangePassword === true,
     },
     { method: "admin" },
   );
-  await ctx.internalAdapter.linkAccount({
-    userId: user.id,
-    providerId: "credential",
-    accountId: user.id,
-    password: hash,
-  });
+  try {
+    await ctx.internalAdapter.linkAccount({
+      userId: user.id,
+      providerId: "credential",
+      accountId: user.id,
+      password: hash,
+    });
+  } catch (err) {
+    // Never leave a user that has no way to sign in.
+    await ctx.internalAdapter.deleteUser(user.id).catch(() => {});
+    throw err;
+  }
   return { id: user.id };
 }
 

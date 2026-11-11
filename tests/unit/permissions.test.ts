@@ -70,7 +70,7 @@ describe("adminLinksFor", () => {
   it("gives each admin role the links for the screens it may use", () => {
     expect(labels("SALES_MANAGER")).toEqual(["Products", "Categories", "Enquiries"]);
     expect(labels("ADMINISTRATOR")).toEqual(["Products", "Categories", "Settings"]);
-    expect(labels("SUPER_ADMIN")).toEqual(["Products", "Categories", "Enquiries", "Settings", "Audit log"]);
+    expect(labels("SUPER_ADMIN")).toEqual(["Products", "Categories", "Enquiries", "Settings", "Users", "Audit log"]);
   });
 
   it("gives non-admin roles no links", () => {
