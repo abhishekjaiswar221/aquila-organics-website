@@ -35,9 +35,10 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
   const q = firstParam(sp.q).trim();
   const rawStatus = firstParam(sp.status);
   const status = isProductStatus(rawStatus) ? rawStatus : undefined;
-  const result = await listAdminProducts({ q: q || undefined, status, page: pageParam(sp.page) });
+  const imported = firstParam(sp.imported) === "1";
+  const result = await listAdminProducts({ q: q || undefined, status, imported, page: pageParam(sp.page) });
   const canVerify = can(role, "products.verify");
-  const filtered = Boolean(q || status);
+  const filtered = Boolean(q || status || imported);
 
   return (
     <>
@@ -52,7 +53,23 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
         </Link>
       </p>
 
+      <p className="mt-4 text-sm">
+        {imported ? (
+          <>
+            Showing imported products awaiting review.{" "}
+            <Link href={PATH} className={linkCls}>
+              Show all products
+            </Link>
+          </>
+        ) : (
+          <Link href={`${PATH}?imported=1`} className={linkCls}>
+            Imported, awaiting review
+          </Link>
+        )}
+      </p>
+
       <form method="get" action={PATH} className="mt-6 grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto] sm:items-end">
+        {imported ? <input type="hidden" name="imported" value="1" /> : null}
         <div className="min-w-0">
           <label htmlFor="product-q" className={labelCls}>
             Search name, code or CAS
@@ -157,7 +174,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
       <Pagination
         page={result.page}
         pageCount={result.pageCount}
-        hrefFor={(page) => listHref(PATH, { q, status, page })}
+        hrefFor={(page) => listHref(PATH, { q, status, imported, page })}
       />
     </>
   );
