@@ -5,7 +5,7 @@ import { forbidden, redirect } from "next/navigation";
 import { APIError } from "better-auth/api";
 import { refresh } from "next/cache";
 import type { Prisma } from "@/generated/prisma/client";
-import { recordAudit, type AuditAction } from "@/features/admin/audit";
+import { recordAudit, recordAuditBestEffort, type AuditAction } from "@/features/admin/audit";
 import { ADMIN_LOGIN_PATH } from "@/features/admin/login";
 import { generatePassword } from "@/features/users/password";
 import { parseChangePassword, parseCreateUser, parseRole, type UserFieldErrors } from "@/features/users/schema";
@@ -79,7 +79,9 @@ export async function createAdminUser(_prev: UserFormState, formData: FormData):
       name: parsed.name,
       mustChangePassword: true,
     });
-    await recordAudit({
+    // The user and password already exist: a failed audit write must neither hide the one-time
+    // password nor be mistaken for a duplicate email, so it is logged and the creation succeeds.
+    await recordAuditBestEffort({
       actorId: actor.userId,
       actorRole: actor.role,
       action: "user.create",
@@ -166,6 +168,8 @@ export async function submitUserReset(_prev: UserFormState, formData: FormData):
       await lockUsers(tx);
       const target = await tx.user.findUnique({ where: { id }, select: { email: true } });
       if (!target) throw new NotFound();
+      // Resetting yourself would sign you out at once and could lose the new password.
+      if (id === actor.userId) throw new Refused("Change your own password from the change-password page instead.");
       const { count } = await tx.account.updateMany({ where: { userId: id, providerId: "credential" }, data: { password: hash } });
       if (count === 0) throw new Refused("That user has no password sign-in to reset.");
       await tx.user.update({ where: { id }, data: { mustChangePassword: true } });
@@ -205,14 +209,23 @@ export async function changeOwnPassword(_prev: UserFormState, formData: FormData
       headers: requestHeaders,
       body: { currentPassword: parsed.currentPassword, newPassword: parsed.newPassword, revokeOtherSessions: false },
     });
+  } catch (err) {
+    // A wrong current password and any other failure read the same: no oracle.
+    if (!(err instanceof APIError)) console.error("[admin] password change failed:", err instanceof Error ? err.name : typeof err);
+    return { ok: false, message: CHANGE_FAILED };
+  }
+  try {
     await db.$transaction(async (tx) => {
       await tx.user.update({ where: { id: session.user.id }, data: { mustChangePassword: false } });
       await tx.session.deleteMany({ where: { userId: session.user.id, NOT: { token: session.session.token } } });
     });
   } catch (err) {
-    // A wrong current password and any other failure read the same: no oracle.
-    if (!(err instanceof APIError)) console.error("[admin] password change failed:", err instanceof Error ? err.name : typeof err);
-    return { ok: false, message: CHANGE_FAILED };
+    // The password HAS changed; only the follow-up failed. Say so, or the user retries with the old one.
+    console.error("[admin] password changed but cleanup failed:", err instanceof Error ? err.name : typeof err);
+    return {
+      ok: false,
+      message: "Your password was changed, but the account could not be fully updated. Sign in again with the new password.",
+    };
   }
   // No redirect(): the browser's router cached "/admin/products redirects to /admin/change-password" while
   // the flag was set (the sign-in landing), so a soft redirect would bounce straight back here. The form

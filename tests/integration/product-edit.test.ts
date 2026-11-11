@@ -237,12 +237,35 @@ describe("updateProduct", () => {
     expect(row.updatedAt.getTime()).toBe(p.updatedAt.getTime());
   });
 
-  it("edits ARCHIVED products freely", async () => {
+  it("edits ARCHIVED products, but a public change clears their verification (no product.reverify: it was offline)", async () => {
     const p = await makeProduct("archived-one", { status: "ARCHIVED", verified: true });
     await updateProduct(null, await editForm(p.id, { description: "Changed" }));
     const row = await db.product.findUniqueOrThrow({ where: { id: p.id } });
-    expect(row).toMatchObject({ description: "Changed", status: "ARCHIVED", verified: true });
+    expect(row).toMatchObject({ description: "Changed", status: "ARCHIVED", verified: false });
     expect(await db.auditLog.count({ where: { action: "product.reverify" } })).toBe(0);
+  });
+
+  it("clears verification on a verified DRAFT when public content changes, so it cannot be published unseen", async () => {
+    const p = await makeProduct("draft-verified", { status: "DRAFT", verified: true });
+    await updateProduct(null, await editForm(p.id, { description: "Sneaky change" }));
+    expect((await db.product.findUniqueOrThrow({ where: { id: p.id } })).verified).toBe(false);
+  });
+
+  it("keeps verification when only the source note changes", async () => {
+    const p = await makeProduct("note-only", { status: "ARCHIVED", verified: true });
+    await updateProduct(null, await editForm(p.id, { sourceNote: "Checked against the datasheet" }));
+    expect(await db.product.findUniqueOrThrow({ where: { id: p.id } })).toMatchObject({ verified: true, status: "ARCHIVED" });
+  });
+
+  it("does not treat browser CRLF line breaks as a change to an LF description", async () => {
+    const p = await makeProduct("crlf", { status: "PUBLISHED", verified: true });
+    await db.product.update({ where: { id: p.id }, data: { description: "Line one\nLine two" } });
+    const result = await updateProduct(
+      null,
+      await editForm(p.id, { description: "Line one\r\nLine two", sourceNote: "Edited note only" }),
+    );
+    expect(result).toMatchObject({ ok: true });
+    expect(await db.product.findUniqueOrThrow({ where: { id: p.id } })).toMatchObject({ status: "PUBLISHED", verified: true });
   });
 
   it("unpublishes a PUBLISHED product whose description changes and records product.reverify", async () => {

@@ -210,13 +210,19 @@ export async function updateProduct(_prev: ProductEditState, formData: FormData)
       const taken = await conflicts(tx, data, id);
       if (Object.keys(taken).length > 0) return { kind: "invalid", fieldErrors: taken };
 
-      const reverify = current.status === "PUBLISHED" && changed.some((f) => PUBLIC_PRODUCT_FIELDS.includes(f));
+      // Any change to public content invalidates the verification, whatever the status:
+      // otherwise an edited-but-still-"verified" draft or archived product could later be
+      // published by someone who never saw the new content. A PUBLISHED product is also
+      // taken offline in the same write.
+      const unverify = changed.some((f) => PUBLIC_PRODUCT_FIELDS.includes(f));
+      const reverify = current.status === "PUBLISHED" && unverify;
       // Compare-and-set on updatedAt: a concurrent save makes this match nothing.
       const { count } = await tx.product.updateMany({
         where: { id, updatedAt: current.updatedAt },
         data: {
           ...scalarColumns(data),
-          ...(reverify ? { verified: false, status: "DRAFT" as const, publishedAt: null } : {}),
+          ...(unverify ? { verified: false } : {}),
+          ...(reverify ? { status: "DRAFT" as const, publishedAt: null } : {}),
         },
       });
       if (count === 0) return { kind: "stale" };

@@ -68,6 +68,19 @@ beforeEach(async () => {
 });
 
 describe("createAdminUser", () => {
+  it("still shows the one-time password when only the audit write fails", async () => {
+    const audit = await import("@/features/admin/audit");
+    const spy = vi.spyOn(db.auditLog, "create").mockRejectedValueOnce(new Error("audit down"));
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+    const result = await createAdminUser(null, fd({ name: "Audit Down", email: "auditdown@example.test", role: "CONTENT_EDITOR" }));
+    spy.mockRestore();
+    quiet.mockRestore();
+    expect(audit.AUDIT_ACTIONS).toContain("user.create");
+    expect(result).toMatchObject({ ok: true, email: "auditdown@example.test" });
+    if (!result?.ok || !result.password) throw new Error("expected a password");
+    expect(await db.user.count({ where: { email: "auditdown@example.test" } })).toBe(1);
+  });
+
   it("creates a user whose one-time password signs in, flagged to change it, with the chosen role", async () => {
     const result = await createAdminUser(null, fd({ name: "  Priya  Shah ", email: " Priya@Example.TEST ", role: "SALES_MANAGER" }));
     expect(result).toMatchObject({ ok: true, email: "priya@example.test" });
@@ -361,6 +374,15 @@ describe("last super admin and self guards", () => {
 });
 
 describe("resetUserPassword", () => {
+  it("refuses to reset your own password and leaves the session and password alone", async () => {
+    const before = await db.session.count({ where: { userId: ids.get("SUPER_ADMIN") } });
+    const r = await submitUserReset(null, fd({ id: ids.get("SUPER_ADMIN") ?? "" }));
+    expect(r).toMatchObject({ ok: false });
+    expect(await db.session.count({ where: { userId: ids.get("SUPER_ADMIN") } })).toBe(before);
+    expect((await db.user.findUniqueOrThrow({ where: { id: ids.get("SUPER_ADMIN") } })).mustChangePassword).toBe(false);
+    expect(await db.auditLog.count({ where: { action: "user.reset-password" } })).toBe(0);
+  });
+
   it("returns a new one-time password that signs in, sets the flag and revokes sessions", async () => {
     const u = await makeUser("SALES_MANAGER");
     await signIn(u.email, u.password);

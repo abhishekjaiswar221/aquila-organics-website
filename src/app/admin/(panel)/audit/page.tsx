@@ -16,7 +16,9 @@ import { AUDIT_ACTIONS } from "@/features/admin/audit";
 import { AUDIT_PAGE_SIZE, isAuditAction, listAudit } from "@/features/admin/audit-queries";
 import { adminMetadata } from "@/features/admin/metadata";
 import { firstParam, pageParam } from "@/features/admin/search-params";
+import { db } from "@/lib/db";
 import { requireAction } from "@/lib/permissions";
+import { normalizeUuid } from "@/lib/uuid";
 
 // Per request (session + database), no `use cache`: new rows show at once.
 export const instant = false;
@@ -37,6 +39,8 @@ export default async function AdminAuditPage({ searchParams }: PageProps<"/admin
   const sp = await searchParams;
   const rawAction = firstParam(sp.action);
   const action = isAuditAction(rawAction) ? rawAction : undefined;
+  const actors = await db.user.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } });
+  const actorId = normalizeUuid(firstParam(sp.actor)) ?? undefined;
   const entityType = firstParam(sp.entityType).trim().slice(0, 60);
   const rawFrom = firstParam(sp.from);
   const rawTo = firstParam(sp.to);
@@ -47,17 +51,19 @@ export default async function AdminAuditPage({ searchParams }: PageProps<"/admin
   // The "to" day is inclusive: up to the last millisecond of that day (UTC).
   const result = await listAudit({
     action,
+    actorId,
     entityType: entityType || undefined,
     from,
     to: to ? new Date(to.getTime() + DAY_MS - 1) : undefined,
     page,
   });
   const pageCount = Math.max(1, Math.ceil(result.total / AUDIT_PAGE_SIZE));
-  const filtered = Boolean(action || entityType || from || to);
+  const filtered = Boolean(action || actorId || entityType || from || to);
 
   const hrefFor = (p: number) => {
     const q = new URLSearchParams();
     if (action) q.set("action", action);
+    if (actorId) q.set("actor", actorId);
     if (entityType) q.set("entityType", entityType);
     if (from) q.set("from", rawFrom);
     if (to) q.set("to", rawTo);
@@ -73,7 +79,7 @@ export default async function AdminAuditPage({ searchParams }: PageProps<"/admin
         {filtered ? " match" : " recorded"}. Times are UTC. Entries hold ids and field names only, never personal data.
       </PageHeader>
 
-      <form method="get" action={PATH} className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_10rem_10rem_auto] lg:items-end">
+      <form method="get" action={PATH} className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_10rem_10rem_auto] lg:items-end">
         <div className="min-w-0">
           <label htmlFor="audit-action" className={labelCls}>
             Action
@@ -83,6 +89,19 @@ export default async function AdminAuditPage({ searchParams }: PageProps<"/admin
             {AUDIT_ACTIONS.map((a) => (
               <option key={a} value={a}>
                 {a}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="min-w-0">
+          <label htmlFor="audit-actor" className={labelCls}>
+            Actor
+          </label>
+          <select id="audit-actor" name="actor" defaultValue={actorId ?? ""} className={inputCls}>
+            <option value="">Anyone</option>
+            {actors.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
               </option>
             ))}
           </select>

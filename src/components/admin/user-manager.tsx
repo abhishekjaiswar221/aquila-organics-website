@@ -138,6 +138,13 @@ export function UserManager({ users, currentUserId }: { users: UserRow[]; curren
                         Role for {u.name}
                       </label>
                       <select id={`role-${u.id}`} name="role" defaultValue={u.role} disabled={self || pending} className={`${inputCls} h-9 w-auto`}>
+                        {/* A role with no admin access (e.g. HR manager) is shown as it is, selected but not
+                            selectable, so the row never reads as "Super admin" by accident. */}
+                        {ROLE_OPTIONS.some((o) => o.value === u.role) ? null : (
+                          <option value={u.role} disabled>
+                            {u.role.replace(/_/g, " ").toLowerCase()} (no admin access)
+                          </option>
+                        )}
                         {ROLE_OPTIONS.map((o) => (
                           <option key={o.value} value={o.value}>
                             {o.label}
@@ -170,7 +177,7 @@ export function UserManager({ users, currentUserId }: { users: UserRow[]; curren
                       <form action={action}>
                         <input type="hidden" name="intent" value="reset" />
                         <input type="hidden" name="id" value={u.id} />
-                        <button type="submit" disabled={pending} className={secondaryButtonCls}>
+                        <button type="submit" disabled={self || pending} className={secondaryButtonCls}>
                           Reset password<span className="sr-only"> for {u.name}</span>
                         </button>
                       </form>

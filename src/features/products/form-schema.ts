@@ -59,7 +59,9 @@ export type ProductFormParse =
   | { ok: false; fieldErrors: Record<string, string> };
 
 const clean = (value: FormDataEntryValue | null): string =>
-  typeof value === "string" ? value.replace(/\u0000/g, "").trim() : "";
+  // Browsers submit multipart text with CRLF line breaks; the stored text uses LF, so
+  // normalise here or an untouched multi-line field would look "changed" on every save.
+  typeof value === "string" ? value.replace(/\u0000/g, "").replace(/\r\n?/g, "\n").trim() : "";
 
 function rowIndexes(formData: FormData, pattern: RegExp): number[] | null {
   const seen = new Set<number>();
