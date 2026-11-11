@@ -8,7 +8,7 @@ import { RFQ_PATH } from "@/features/enquiries/confirmation";
 export const metadata: Metadata = {
   title: "Privacy notice",
   description:
-    "How the Aquila Organics website handles the information you send through its enquiry forms. Draft under review.",
+    "How the Aquila Organics website handles the information you send through its enquiry forms and job applications. Draft under review.",
   alternates: { canonical: "/privacy" },
 };
 
@@ -83,8 +83,19 @@ export default function PrivacyPage() {
           <p>
             The contact forms collect the same details as the quotation request (name, company, email, telephone
             and country) plus the message you write and any files you attach, and are handled in the same way,
-            including the limits above. A careers form will be added later; this notice will be updated before it
-            goes live.
+            including the limits above.
+          </p>
+          <p>
+            When you apply for a job through the{" "}
+            <Link href="/careers" className={linkCls}>
+              careers pages
+            </Link>
+            , we receive your name, email address, telephone number (optional), country (optional), the message you
+            write (optional), your CV (a PDF or DOCX file), the opening you applied for, and the time you agreed to
+            this notice. We also store your browser&rsquo;s user agent and a one-way code derived from your IP
+            address, for the same reasons as above. Your CV and details are visible only to Aquila&rsquo;s HR team
+            and super administrators, who can review, download and delete them. They are not shown on the website,
+            and the acknowledgement we send you contains only your reference.
           </p>
         </Section>
 
@@ -93,20 +104,31 @@ export default function PrivacyPage() {
             <li>to review and respond to your enquiry, including preparing a quotation;</li>
             <li>to contact you about your enquiry;</li>
             <li>to keep a record of the enquiries we receive;</li>
+            <li>to consider your job application and contact you about it;</li>
             <li>to protect the website and our team from spam and misuse.</li>
           </ul>
         </Section>
 
         <Section id="retention" title="How long we keep it">
-          <p>Retention periods are to be confirmed by Aquila.</p>
+          <p>
+            Retention periods are to be confirmed by Aquila, for enquiries and for job applications alike. Until
+            they are set, applications and CVs are kept until our HR team deletes them.
+          </p>
         </Section>
 
         <Section id="sharing" title="Who we share it with">
           <p>We share your information only with service providers that help us run this website:</p>
           <ul>
-            <li>our hosting provider, which stores the website and the enquiries sent through it;</li>
             <li>
-              our email provider, which delivers the acknowledgement sent to you and the notification sent to our team.
+              our hosting provider, which stores the website and the enquiries and job applications sent through it;
+            </li>
+            <li>
+              our file storage provider, which holds the CVs and attachments you upload, in storage that is not
+              publicly accessible;
+            </li>
+            <li>
+              our email provider, which delivers the acknowledgement sent to you and the notification sent to our
+              team (for a job application, the notification to our HR team includes your details).
             </li>
           </ul>
         </Section>
@@ -126,7 +148,8 @@ export default function PrivacyPage() {
 
         <Section id="requests" title="Your requests">
           <p>
-            You can ask us what information we hold about you, and ask us to correct or delete it. Please write to{" "}
+            You can ask us what information we hold about you, and ask us to correct or delete it, including a job
+            application and its CV. Please write to{" "}
             <a href={`mailto:${contacts.general}`} className={linkCls}>
               {contacts.general}
             </a>

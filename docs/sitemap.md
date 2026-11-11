@@ -25,7 +25,7 @@ Target information architecture, with the legacy URL each page replaces and the 
 | `/sustainability/compliance` | `/about/certifications` (Legal and Regulatory Compliance) | 3 (done) |
 | `/sustainability/certifications` | `/about/certification` | 3 (done) |
 | `/resources`, `/resources/[slug]` | none (new) | 5 |
-| `/careers`, `/careers/[slug]` | `/careers` | 5 |
+| `/careers`, `/careers/[slug]`, `/careers/apply`, `/careers/apply/confirmation` | `/careers` | 5 (done: careers) |
 | `/contact` | `/contactus` | 3 (done) |
 | `/admin/*` | none | minimal admin done in 4 (login, products, enquiries); full admin in 5. Not indexed |
 
@@ -65,3 +65,14 @@ Any other path renders the site 404 page (`noindex`).
 `/sitemap.xml` now also lists these pages (the certifications page only when indexable). Old-site URLs for these pages redirect once each: see `docs/url-migration.md`.
 
 Notes: every legacy `/index.php/<slug>` duplicate maps to the same target as its clean URL, with no redirect chains. `/about/certifications` and `/about/certification` are near-duplicates today; they get separate, distinct pages.
+
+## Routes added by sub-project 5 (careers)
+
+| URL | What it is | Indexable | In sitemap |
+|---|---|---|---|
+| `/careers` | Published, non-expired openings, or "There are no current openings." with a link to the general application | yes | yes (always) |
+| `/careers/[slug]` | One opening with an Apply button and `JobPosting` JSON-LD. Unknown, draft, closed and expired slugs answer a real 404 through `src/proxy.ts` (a database lookup, failing open on a database error; `apply` is let through) | yes, public openings only | yes, public openings only |
+| `/careers/apply` | Application form. `?job=<slug>` preselects an opening only while it is public; anything else is the general application | no (`noindex`) | no |
+| `/careers/apply/confirmation?ref=CA-YYYY-NNNNNN` | Confirmation (the reference only) | no (`noindex, nofollow`) | no |
+
+The slugs `apply` and `confirmation` are reserved: an opening can never use them.

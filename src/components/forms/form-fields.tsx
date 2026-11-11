@@ -177,10 +177,12 @@ export function ConsentField({
   id,
   error,
   registration,
+  label = "I agree to Aquila Organics using these details to respond to my enquiry.",
 }: {
   id: string;
   error?: string;
   registration: UseFormRegisterReturn;
+  label?: string;
 }) {
   return (
     <div className="flex items-start gap-3">
@@ -194,7 +196,7 @@ export function ConsentField({
       />
       <div className="min-w-0">
         <label htmlFor={id} className="text-sm font-medium leading-relaxed">
-          I agree to Aquila Organics using these details to respond to my enquiry.
+          {label}
         </label>
         <p id={`${id}-hint`} className={hintCls}>
           How we handle your information is explained in our{" "}

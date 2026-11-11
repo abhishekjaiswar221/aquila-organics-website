@@ -158,3 +158,11 @@ export async function getPublishedJobBySlug(slug: string, now: Date): Promise<Pu
   const row = await db.jobOpening.findUnique({ where: { slug }, select: PUBLISHED_SELECT });
   return row && isJobPublic(row, now) ? toPublished(row) : null;
 }
+
+/**
+ * Cheap public-visibility check (unique slug index) used by src/proxy.ts before
+ * rendering: true only for an opening that is public right now.
+ */
+export async function isPublishedJobSlug(slug: string, now: Date = new Date()): Promise<boolean> {
+  return (await getPublishedJobBySlug(slug, now)) !== null;
+}

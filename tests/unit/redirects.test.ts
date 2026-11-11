@@ -7,6 +7,8 @@ import { buildSitemap } from "@/lib/seo/sitemap";
 const LIVE = new Set<string>([
   ...buildSitemap("https://example.test", [], { certificationsIndexable: true }).map((e) => new URL(e.url).pathname),
   "/rfq",
+  // Careers: /careers is in the sitemap; the apply form is live but not indexable.
+  "/careers/apply",
 ]);
 
 describe("redirect table", () => {

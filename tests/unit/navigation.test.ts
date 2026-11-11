@@ -79,8 +79,10 @@ describe("primaryNav availability", () => {
     }
   });
 
-  it("keeps Careers unavailable until the careers sub-project ships", () => {
-    expect(primaryNav.find((i) => i.label === "Careers")?.available).toBe(false);
+  it("Careers is available and points at the live /careers page", () => {
+    const careers = primaryNav.find((i) => i.label === "Careers");
+    expect(careers?.available).toBe(true);
+    expect(careers?.href).toBe("/careers");
   });
 });
 
@@ -94,6 +96,6 @@ describe("footer links", () => {
 
   it("include About, Sustainability and Contact", () => {
     const hrefs = footerNav.map((i) => i.href);
-    for (const h of ["/about", "/sustainability", "/contact"]) expect(hrefs).toContain(h);
+    for (const h of ["/about", "/sustainability", "/careers", "/contact"]) expect(hrefs).toContain(h);
   });
 });
