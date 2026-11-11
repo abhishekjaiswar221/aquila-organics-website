@@ -201,13 +201,14 @@ export async function existingReference(submissionId: string | undefined): Promi
  */
 export async function limitByIp(
   requestHeaders: Headers,
+  keyPrefix = "rfq",
 ): Promise<{ ok: true; ipHash: string | null } | { ok: false; result: SubmitRfqResult }> {
   const ip = getClientIp(requestHeaders);
   if (!ip) warnUnresolvedIpOnce();
   const ipHash = ip ? hashIp(ip, env.RATE_LIMIT_SALT) : null;
   const limit = await checkRateLimit(
     dbRateLimitStore,
-    `rfq:${ipHash ?? NO_TRUSTED_IP}`,
+    `${keyPrefix}:${ipHash ?? NO_TRUSTED_IP}`,
     ipHash ? RFQ_RATE_LIMIT : RFQ_UNRESOLVED_IP_RATE_LIMIT,
     RFQ_RATE_WINDOW_MS,
   );
@@ -220,16 +221,29 @@ function displayName(raw: string): string {
   return name ? [...name].slice(0, 80).join("") : "Unnamed file";
 }
 
+export type AttachmentOptions = {
+  /** Form field holding the files. Default: the RFQ/contact "attachments" field. */
+  field?: string;
+  /** Allowed extensions (lower case, no dot). Default: every known extension. */
+  allowed?: readonly string[];
+  /** Most files accepted. Default: MAX_ATTACHMENTS. */
+  max?: number;
+  /** Prefix of the opaque storage key. Default "rfq". */
+  keyPrefix?: string;
+};
+
 /** Reads and sniffs every attachment (validateAttachment); any bad file rejects the lot. */
 export async function readAndValidateAttachments(
   formData: FormData,
+  opts: AttachmentOptions = {},
 ): Promise<{ ok: true; files: Attachment[] } | { ok: false; errors: string[] }> {
+  const { field = ATTACHMENTS_FIELD, allowed, max = MAX_ATTACHMENTS, keyPrefix = "rfq" } = opts;
   const entries = formData
-    .getAll(ATTACHMENTS_FIELD)
+    .getAll(field)
     // An unused <input type="file"> submits an empty, unnamed part.
     .filter((v) => typeof v === "string" || v.size > 0 || v.name !== "");
-  if (entries.length > MAX_ATTACHMENTS) {
-    return { ok: false, errors: [`Attach no more than ${MAX_ATTACHMENTS} files`] };
+  if (entries.length > max) {
+    return { ok: false, errors: [`Attach no more than ${max} ${max === 1 ? "file" : "files"}`] };
   }
   const errors: string[] = [];
   const files: Attachment[] = [];
@@ -239,13 +253,13 @@ export async function readAndValidateAttachments(
       continue;
     }
     const bytes = new Uint8Array(await entry.arrayBuffer());
-    const verdict = validateAttachment({ name: entry.name, size: entry.size, bytes });
+    const verdict = validateAttachment({ name: entry.name, size: entry.size, bytes }, allowed);
     if (!verdict.ok) {
       errors.push(`${displayName(entry.name)}: ${verdict.reason}`);
       continue;
     }
     // Opaque random key: no user input, unguessable, valid for every driver.
-    const key = `rfq-${randomBytes(32).toString("base64url")}`;
+    const key = `${keyPrefix}-${randomBytes(32).toString("base64url")}`;
     files.push({ safeName: verdict.safeName, mimeType: verdict.mimeType, bytes, key });
   }
   return errors.length ? { ok: false, errors } : { ok: true, files };
@@ -262,7 +276,7 @@ async function removeFiles(keys: string[], tag: LogTag): Promise<void> {
   );
 }
 
-function isUniqueViolation(err: unknown): boolean {
+export function isUniqueViolation(err: unknown): boolean {
   return err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002";
 }
 
@@ -438,8 +452,11 @@ async function recipientsFor(type: EnquiryType): Promise<string[]> {
   return parseRecipients(setting?.value);
 }
 
+/** Where email outcomes are written; replaces the EnquiryActivity default (never throws). */
+export type OutcomeRecorder = (action: string, detail: Record<string, string | number | boolean>) => Promise<void>;
+
 async function sendLogged(
-  enquiryId: string,
+  record: OutcomeRecorder,
   kind: "acknowledgement" | "internal",
   to: string[],
   message: RenderedEmail,
@@ -447,10 +464,10 @@ async function sendLogged(
 ): Promise<void> {
   try {
     await withTimeout(getEmailProvider().send({ to, ...message }), emailTimeoutMs);
-    await recordActivity(enquiryId, "email.sent", { kind, recipients: to.length }, tag);
+    await record("email.sent", { kind, recipients: to.length });
   } catch (err) {
     console.error(`[${tag}] ${kind} email failed:`, describeError(err));
-    await recordActivity(enquiryId, "email.failed", { kind, error: describeError(err) }, tag);
+    await record("email.failed", { kind, error: describeError(err) });
   }
 }
 
@@ -469,14 +486,20 @@ export type Notification = {
  * acknowledgement no longer delays the internal notification (each has its own 8s
  * timeout). Each step logs its own failures and neither throws.
  */
-async function notify(enquiry: { id: string; reference: string }, n: Notification, tag: LogTag): Promise<void> {
-  await Promise.all([sendAcknowledgement(enquiry, n, tag), sendInternal(enquiry, n, tag)]);
+async function notify(
+  enquiry: { id: string; reference: string },
+  n: Notification,
+  tag: LogTag,
+  record: OutcomeRecorder,
+): Promise<void> {
+  await Promise.all([sendAcknowledgement(enquiry, n, tag, record), sendInternal(enquiry, n, tag, record)]);
 }
 
 async function sendAcknowledgement(
   enquiry: { id: string; reference: string },
   n: Notification,
   tag: LogTag,
+  record: OutcomeRecorder,
 ): Promise<void> {
   // Per-recipient cap first. If the limiter itself fails, err on the side of
   // not sending (the enquiry is stored either way).
@@ -489,10 +512,10 @@ async function sendAcknowledgement(
     skipReason = "limit check failed";
   }
   if (mayAcknowledge) {
-    await sendLogged(enquiry.id, "acknowledgement", [n.email], n.acknowledgement, tag);
+    await sendLogged(record, "acknowledgement", [n.email], n.acknowledgement, tag);
   } else {
     console.warn(`[${tag}] acknowledgement skipped for ${enquiry.reference}: ${skipReason}`);
-    await recordActivity(enquiry.id, "email.skipped", { reason: skipReason }, tag);
+    await record("email.skipped", { reason: skipReason });
   }
 }
 
@@ -500,6 +523,7 @@ async function sendInternal(
   enquiry: { id: string; reference: string },
   n: Notification,
   tag: LogTag,
+  record: OutcomeRecorder,
 ): Promise<void> {
   let recipients: string[] = [];
   try {
@@ -511,20 +535,29 @@ async function sendInternal(
     console.warn(
       `[${tag}] no notification recipients configured for ${n.type}; internal email skipped for ${enquiry.reference}`,
     );
-    await recordActivity(enquiry.id, "notification.skipped", { reason: "no recipients configured" }, tag);
+    await record("notification.skipped", { reason: "no recipients configured" });
     return;
   }
-  await sendLogged(enquiry.id, "internal", recipients, n.internal, tag);
+  await sendLogged(record, "internal", recipients, n.internal, tag);
 }
 
-/** Best-effort emails after the enquiry is stored; never throws (a failing `build` included). */
+/**
+ * Best-effort emails after the enquiry is stored; never throws (a failing
+ * `build` included). `record` replaces the default EnquiryActivity write.
+ */
 export async function notifyAfterCreate(
   enquiry: { id: string; reference: string },
   build: () => Notification,
   tag: LogTag,
+  record?: OutcomeRecorder,
 ): Promise<void> {
   try {
-    await notify(enquiry, build(), tag);
+    await notify(
+      enquiry,
+      build(),
+      tag,
+      record ?? ((action, detail) => recordActivity(enquiry.id, action, detail, tag)),
+    );
   } catch (err) {
     console.error(`[${tag}] notification step failed:`, errorClass(err));
   }
