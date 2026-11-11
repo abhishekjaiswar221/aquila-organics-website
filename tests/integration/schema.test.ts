@@ -225,6 +225,43 @@ describe("resetDb", () => {
   });
 });
 
+describe("Careers tables", () => {
+  beforeEach(resetDb);
+
+  const baseJob = { slug: "test-chemist", title: "TEST Chemist", location: "TEST City", employmentType: "FULL_TIME" as const, summary: "s", description: "d" };
+  const baseApp = { fullName: "TEST A", email: "a@example.test", consentAt: new Date() };
+
+  it("sets the opening to null (keeping the title snapshot) when the opening is deleted", async () => {
+    const job = await db.jobOpening.create({ data: baseJob });
+    const app = await db.jobApplication.create({
+      data: { ...baseApp, reference: "CA-2026-000001", jobId: job.id, jobTitleSnapshot: job.title },
+    });
+    await db.jobOpening.delete({ where: { id: job.id } });
+    const after = await db.jobApplication.findUniqueOrThrow({ where: { id: app.id } });
+    expect(after).toMatchObject({ jobId: null, jobTitleSnapshot: "TEST Chemist" });
+  });
+
+  it("cascades the files when an application is deleted", async () => {
+    const app = await db.jobApplication.create({
+      data: { ...baseApp, reference: "CA-2026-000002", jobTitleSnapshot: "General application" },
+    });
+    await db.applicationFile.create({ data: { applicationId: app.id, filename: "cv.pdf", mimeType: "application/pdf", sizeBytes: 10, storageKey: "cv-test-1" } });
+    await db.jobApplication.delete({ where: { id: app.id } });
+    expect(await db.applicationFile.count()).toBe(0);
+  });
+
+  it("keeps references, slugs and storage keys unique, and defaults to DRAFT and NEW", async () => {
+    const job = await db.jobOpening.create({ data: baseJob });
+    expect(job.status).toBe("DRAFT");
+    await expect(db.jobOpening.create({ data: baseJob })).rejects.toBeDefined();
+    const app = await db.jobApplication.create({ data: { ...baseApp, reference: "CA-2026-000003", jobTitleSnapshot: "x" } });
+    expect(app.status).toBe("NEW");
+    await expect(
+      db.jobApplication.create({ data: { ...baseApp, reference: "CA-2026-000003", jobTitleSnapshot: "x" } }),
+    ).rejects.toBeDefined();
+  });
+});
+
 describe("AuditLog", () => {
   beforeEach(resetDb);
 

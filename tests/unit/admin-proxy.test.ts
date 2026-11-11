@@ -39,10 +39,10 @@ describe("adminRedirectTarget", () => {
     expect(nextOf(target)).toBe("/admin/enquiries?status=NEW&q=a%20b");
   });
 
-  it("bare /admin goes to login with the products list as next", () => {
-    expect(adminRedirectTarget(signedOut("/admin"))).toBe("/admin/login?next=%2Fadmin%2Fproducts");
-    expect(adminRedirectTarget(signedOut("/admin/"))).toBe("/admin/login?next=%2Fadmin%2Fproducts");
-    expect(adminRedirectTarget(signedOut("/admin", { search: "?x=1" }))).toBe("/admin/login?next=%2Fadmin%2Fproducts");
+  it("bare /admin goes to login with the role landing page as next", () => {
+    expect(adminRedirectTarget(signedOut("/admin"))).toBe("/admin/login?next=%2Fadmin");
+    expect(adminRedirectTarget(signedOut("/admin/"))).toBe("/admin/login?next=%2Fadmin");
+    expect(adminRedirectTarget(signedOut("/admin", { search: "?x=1" }))).toBe("/admin/login?next=%2Fadmin");
   });
 
   it("lets any request with a session cookie through (the server decides)", () => {
@@ -99,8 +99,8 @@ describe("adminRedirectTarget", () => {
       expect(next.startsWith("//")).toBe(false);
       expect(new URL(next, "https://site.invalid").origin).toBe("https://site.invalid");
     }
-    expect(nextOf(adminRedirectTarget(signedOut("/admin/../x")))).toBe("/admin/products");
-    expect(nextOf(adminRedirectTarget(signedOut(`/admin/${"a".repeat(600)}`)))).toBe("/admin/products");
+    expect(nextOf(adminRedirectTarget(signedOut("/admin/../x")))).toBe("/admin");
+    expect(nextOf(adminRedirectTarget(signedOut(`/admin/${"a".repeat(600)}`)))).toBe("/admin");
   });
 });
 

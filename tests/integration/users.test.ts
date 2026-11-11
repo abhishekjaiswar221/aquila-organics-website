@@ -108,8 +108,14 @@ describe("createAdminUser", () => {
     expect(await db.user.count({ where: { email: "dup@example.test" } })).toBe(1);
   });
 
-  it("refuses a role outside the four admin roles and invalid fields", async () => {
-    for (const role of ["HR_MANAGER", "SALES_EXECUTIVE", "ROOT", ""]) {
+  it("creates an HR manager, who lands on the applications inbox", async () => {
+    const r = await createAdminUser(null, fd({ name: "Hira", email: "hira@example.test", role: "HR_MANAGER" }));
+    expect(r).toMatchObject({ ok: true, email: "hira@example.test" });
+    expect(await db.user.findUniqueOrThrow({ where: { email: "hira@example.test" } })).toMatchObject({ role: "HR_MANAGER" });
+  });
+
+  it("refuses a role outside the five admin roles and invalid fields", async () => {
+    for (const role of ["SALES_EXECUTIVE", "ROOT", ""]) {
       const r = await createAdminUser(null, fd({ name: "X", email: "x@example.test", role }));
       expect(r).toMatchObject({ ok: false, errors: { role: expect.any(String) } });
     }
@@ -265,7 +271,7 @@ describe("role changes", () => {
 
   it("refuses a role outside the allow-list", async () => {
     const u = await makeUser("CONTENT_EDITOR");
-    for (const role of ["HR_MANAGER", "SALES_EXECUTIVE", "ROOT", ""]) {
+    for (const role of ["SALES_EXECUTIVE", "ROOT", ""]) {
       expect(await submitUserRole(null, fd({ id: u.id, role }))).toMatchObject({ ok: false });
     }
     expect((await db.user.findUniqueOrThrow({ where: { id: u.id } })).role).toBe("CONTENT_EDITOR");

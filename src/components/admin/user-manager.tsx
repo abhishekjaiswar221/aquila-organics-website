@@ -16,6 +16,7 @@ const ROLE_OPTIONS = [
   { value: "ADMINISTRATOR", label: "Administrator" },
   { value: "SALES_MANAGER", label: "Sales manager" },
   { value: "CONTENT_EDITOR", label: "Content editor" },
+  { value: "HR_MANAGER", label: "HR manager" },
 ] as const;
 
 // One state for the whole page, so a one-time password is replaced (and so

@@ -363,6 +363,102 @@ model AuditLog {
   @@map("audit_log")
 }
 
+// ─── Careers ──────────────────────────────────────────────────────────────────
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERNSHIP
+}
+
+enum JobStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+enum ApplicationStatus {
+  NEW
+  REVIEWING
+  SHORTLISTED
+  INTERVIEW
+  OFFERED
+  HIRED
+  REJECTED
+}
+
+/// A job opening entered by HR. Only PUBLISHED (and not past closesOn) is public.
+model JobOpening {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug           String           @unique
+  title          String
+  location       String
+  department     String?
+  employmentType EmploymentType
+  /// One or two sentences: the list card and the meta description.
+  summary        String
+  /// Plain text; blank lines separate paragraphs. No HTML or markdown is interpreted.
+  description    String
+  status         JobStatus        @default(DRAFT)
+  publishedAt    DateTime?
+  closesOn       DateTime?        @db.Date
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  applications   JobApplication[]
+
+  @@index([status])
+  @@map("job_opening")
+}
+
+/// Candidate data: visible only to HR_MANAGER and SUPER_ADMIN. Never written to
+/// the audit log, console logs or the acknowledgement email.
+model JobApplication {
+  id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// Human-readable, e.g. CA-2026-000123.
+  reference        String            @unique
+  /// Client-generated idempotency token; a replay returns the existing reference.
+  submissionId     String?           @unique @db.Uuid
+  jobId            String?           @db.Uuid
+  job              JobOpening?       @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  /// Kept readable if the opening is deleted; "General application" when none.
+  jobTitleSnapshot String
+  fullName         String
+  email            String
+  phone            String?
+  country          String?
+  message          String?
+  consentAt        DateTime
+  ipHash           String?
+  userAgent        String?
+  status           ApplicationStatus @default(NEW)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  files            ApplicationFile[]
+
+  @@index([status, createdAt])
+  @@index([jobId])
+  @@index([createdAt])
+  @@map("job_application")
+}
+
+model ApplicationFile {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  applicationId String         @db.Uuid
+  application   JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  /// Sanitised display name.
+  filename      String
+  mimeType      String
+  sizeBytes     Int
+  /// Random key in private storage; never exposed in responses.
+  storageKey    String         @unique
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([applicationId])
+  @@map("application_file")
+}
+
 model RateLimitHit {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   key         String

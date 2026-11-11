@@ -28,6 +28,14 @@ export const AUDIT_ACTIONS = [
   "user.enable",
   "user.reset-password",
   "enquiry.status",
+  "job.create",
+  "job.update",
+  "job.status",
+  "job.delete",
+  "application.status",
+  "application.delete",
+  "application.cv-download",
+  "application.email",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

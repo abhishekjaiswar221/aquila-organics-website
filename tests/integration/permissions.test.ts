@@ -242,13 +242,15 @@ describe("requireRole and requireAction", () => {
     expect(digestOf(error)).toMatch(/^NEXT_REDIRECT;replace;\/admin\/login;/);
   });
 
-  it("rejects an HR_MANAGER session with a 403 (no admin access yet)", async () => {
-    await signInAs("HR_MANAGER");
+  it("rejects a session whose role has no admin access (SALES_EXECUTIVE) with a 403", async () => {
+    const email = "sales_executive@example.test";
+    await createCredentialUser({ email, password: "sales_executive-password", role: "SALES_EXECUTIVE" });
+    requestHeaders.current = await sessionHeadersFor(email, "sales_executive-password");
     const error = await requireRole().catch((e: unknown) => e);
     expect(digestOf(error)).toBe("NEXT_HTTP_ERROR_FALLBACK;403");
   });
 
-  it.each(["SUPER_ADMIN", "ADMINISTRATOR", "SALES_MANAGER", "CONTENT_EDITOR"] as const)("allows %s", async (role) => {
+  it.each(["SUPER_ADMIN", "ADMINISTRATOR", "SALES_MANAGER", "CONTENT_EDITOR", "HR_MANAGER"] as const)("allows %s", async (role) => {
     await signInAs(role);
     const result = await requireRole();
     const user = await db.user.findUniqueOrThrow({ where: { email: `${role.toLowerCase()}@example.test` } });
@@ -272,6 +274,18 @@ describe("requireRole and requireAction", () => {
     ["ADMINISTRATOR", "settings.edit", true],
     ["SUPER_ADMIN", "audit.view", true],
     ["HR_MANAGER", "products.edit", false],
+    ["HR_MANAGER", "products.publish", false],
+    ["HR_MANAGER", "settings.edit", false],
+    ["HR_MANAGER", "users.manage", false],
+    ["HR_MANAGER", "audit.view", false],
+    ["HR_MANAGER", "enquiries.view", false],
+    ["HR_MANAGER", "jobs.manage", true],
+    ["HR_MANAGER", "applications.view", true],
+    ["HR_MANAGER", "applications.update", true],
+    ["SUPER_ADMIN", "jobs.manage", true],
+    ["ADMINISTRATOR", "jobs.manage", false],
+    ["SALES_MANAGER", "applications.view", false],
+    ["CONTENT_EDITOR", "applications.update", false],
   ] as const)("requireAction: %s / %s -> allowed=%s", async (role, action, allowed) => {
     await signInAs(role);
     if (allowed) {
