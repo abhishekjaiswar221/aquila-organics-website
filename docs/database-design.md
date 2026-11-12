@@ -25,6 +25,8 @@ erDiagram
   Enquiry ||--o{ EnquiryItem : has
   Enquiry ||--o{ EnquiryAttachment : has
   Enquiry ||--o{ EnquiryActivity : logs
+  JobOpening |o--o{ JobApplication : "applied for (SET NULL)"
+  JobApplication ||--o{ ApplicationFile : has
 ```
 
 `Verification`, `SiteSetting` and `RateLimitHit` stand alone (no foreign keys).
@@ -33,10 +35,13 @@ erDiagram
 
 | Enum | Values | Notes |
 |---|---|---|
-| `Role` | `SUPER_ADMIN`, `ADMINISTRATOR`, `SALES_MANAGER`, `SALES_EXECUTIVE`, `CONTENT_EDITOR`, `HR_MANAGER` | `SUPER_ADMIN`, `ADMINISTRATOR`, `SALES_MANAGER` and `CONTENT_EDITOR` may use the admin, each limited by the permission table in `src/lib/access.ts` (see the README, "Roles") New users default to `CONTENT_EDITOR`, the least privileged, so no sign-up path can create an admin |
+| `Role` | `SUPER_ADMIN`, `ADMINISTRATOR`, `SALES_MANAGER`, `SALES_EXECUTIVE`, `CONTENT_EDITOR`, `HR_MANAGER` | `SUPER_ADMIN`, `ADMINISTRATOR`, `SALES_MANAGER`, `CONTENT_EDITOR` and `HR_MANAGER` may use the admin, each limited by the permission table in `src/lib/access.ts` (see the README, "Roles") New users default to `CONTENT_EDITOR`, the least privileged, so no sign-up path can create an admin |
 | `ProductStatus` | `DRAFT`, `PUBLISHED`, `ARCHIVED` | Only `PUBLISHED` is ever shown publicly |
 | `EnquiryType` | `FRAGRANCES`, `AROMA_CHEMICALS`, `FLAVOURS`, `GENERAL`, `CAREERS` | `CAREERS` is reserved for the careers sub-project |
 | `EnquiryStatus` | `NEW`, `ASSIGNED`, `CONTACTED`, `QUOTATION_SENT`, `NEGOTIATION`, `WON`, `LOST` | Changed in the admin; every change writes an activity row |
+| `EmploymentType` | `FULL_TIME`, `PART_TIME`, `CONTRACT`, `INTERNSHIP` | Job opening type |
+| `JobStatus` | `DRAFT`, `PUBLISHED`, `CLOSED` | Only `PUBLISHED` (and not past `closesOn`) is public |
+| `ApplicationStatus` | `NEW`, `REVIEWING`, `SHORTLISTED`, `INTERVIEW`, `OFFERED`, `HIRED`, `REJECTED` | Changed by HR; each change is audited |
 | `DocumentKind` | `DATASHEET`, `SDS`, `OTHER` | |
 | `Unit` | `KG`, `G`, `MT`, `L`, `ML`, `OTHER` | The RFQ form has no default unit: the visitor must choose one |
 
@@ -71,6 +76,16 @@ Generated with the Better Auth CLI for the Prisma adapter, then hand-edited: `ro
 | `EnquiryItem` (`enquiry_item`) | One product line: `productId` (optional), `productNameSnapshot`, `casSnapshot`, `quantity` (`decimal(14,3)`), `unit`, `notes` | indexes on `enquiryId`, `productId` |
 | `EnquiryAttachment` (`enquiry_attachment`) | `filename` (sanitised), `mimeType`, `sizeBytes`, `storageKey` (random) | `storageKey` unique; index on `enquiryId` |
 | `EnquiryActivity` (`enquiry_activity`) | Append-only log: `action` (`enquiry.created`, `status.changed`, `attachment.downloaded`, `email.sent`, `email.failed`, `email.skipped`, `notification.skipped`), `detail` (JSON), `actorId` (null for system/visitor actions) | indexes on (`enquiryId`, `createdAt`), `actorId` |
+
+### Careers
+
+| Model (table) | Purpose | Keys and indexes |
+|---|---|---|
+| `JobOpening` (`job_opening`) | An opening entered by HR: `slug`, `title`, `location`, `department` (optional), `employmentType`, `summary`, `description` (plain text), `status`, `publishedAt`, `closesOn` (date, optional) | `slug` unique; index on `status` |
+| `JobApplication` (`job_application`) | Candidate data, visible only to HR manager and super admin: `reference` (`CA-2026-000123`), `submissionId` (idempotency token, optional), `jobId` (optional), `jobTitleSnapshot` ("General application" when none), `fullName`, `email` (lower-cased), `phone`, `country`, `message`, `consentAt`, `ipHash`, `userAgent`, `status` | `reference` unique; `submissionId` unique; indexes on (`status`, `createdAt`), `jobId`, `createdAt` |
+| `ApplicationFile` (`application_file`) | The CV: `filename` (sanitised), `mimeType`, `sizeBytes`, `storageKey` (random `cv-` key, never exposed) | `storageKey` unique; index on `applicationId` |
+
+Delete rules: `JobApplication.jobId` is SET NULL (the application stays readable through `jobTitleSnapshot`); `ApplicationFile.applicationId` is CASCADE. Deleting an application in the admin also deletes the stored objects; a database cascade alone would leave the files.
 
 ### System
 
@@ -115,6 +130,8 @@ All indexes are declared in the schema, so Prisma never treats them as drift.
 | `ProductSpecification`, `ProductApplication`, `ProductDocument` `.productId` | CASCADE | Deleting a product removes its specifications, applications and document rows |
 | `EnquiryItem.productId` | SET NULL | Deleting a product keeps enquiry lines readable through `productNameSnapshot` and `casSnapshot` |
 | `EnquiryItem`, `EnquiryAttachment`, `EnquiryActivity` `.enquiryId` | CASCADE | Deleting an enquiry removes its lines, attachment rows and activity log |
+| `JobApplication.jobId` | SET NULL | Deleting an opening keeps its applications, readable through `jobTitleSnapshot` |
+| `ApplicationFile.applicationId` | CASCADE | Deleting an application removes its file rows (the admin action also removes the stored CV) |
 
 Caveats:
 
