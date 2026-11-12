@@ -16,7 +16,9 @@ import { adminMetadata } from "@/features/admin/metadata";
 import { firstParam, pageParam } from "@/features/admin/search-params";
 import { listApplications, listJobFilterOptions } from "@/features/careers/application-queries";
 import { APPLICATION_STATUSES, APPLICATION_STATUS_LABELS, isApplicationStatus } from "@/features/careers/application-status";
-import { requireAction } from "@/lib/permissions";
+import { RecipientsForm } from "@/components/admin/recipients-form";
+import { getAllRecipients } from "@/features/settings/queries";
+import { can, requireAction } from "@/lib/permissions";
 import { normalizeUuid } from "@/lib/uuid";
 
 export const instant = false;
@@ -34,14 +36,15 @@ function hrefFor(params: { status?: string; job?: string; page?: number }): stri
 }
 
 export default async function AdminApplicationsPage({ searchParams }: PageProps<"/admin/applications">) {
-  await requireAction("applications.view");
+  const { role } = await requireAction("applications.view");
   const sp = await searchParams;
   const rawStatus = firstParam(sp.status);
   const status = isApplicationStatus(rawStatus) ? rawStatus : undefined;
   const jobId = normalizeUuid(firstParam(sp.job)) ?? undefined;
-  const [result, jobs] = await Promise.all([
+  const [result, jobs, recipients] = await Promise.all([
     listApplications({ status, jobId, page: pageParam(sp.page) }),
     listJobFilterOptions(),
+    getAllRecipients(),
   ]);
   const filtered = Boolean(status || jobId);
 
@@ -134,6 +137,19 @@ export default async function AdminApplicationsPage({ searchParams }: PageProps<
           </table>
         </TableScroller>
       )}
+
+      {can(role, "applications.update") ? (
+        <section aria-labelledby="careers-recipients-heading" className="mt-10 max-w-2xl">
+          <h2 id="careers-recipients-heading" className="text-xl">
+            Notification recipients
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            New applications are emailed to this list with the candidate&apos;s details. Only people who may see applications
+            should be on it.
+          </p>
+          <RecipientsForm type="CAREERS" label="Careers applications" recipients={recipients.CAREERS} />
+        </section>
+      ) : null}
 
       <Pagination
         page={result.page}

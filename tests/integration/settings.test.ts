@@ -99,7 +99,14 @@ describe("saveRecipients", () => {
     expect(await db.auditLog.count()).toBe(0);
   });
 
-  it("accepts the CAREERS type and stores it under its own key", async () => {
+  it("refuses the CAREERS type for an ADMINISTRATOR: candidate details must not be routed by someone who cannot see applications", async () => {
+    asRole("ADMINISTRATOR");
+    const error = await saveRecipients(null, recipientsForm("CAREERS", "me@x.com")).catch((e: unknown) => e);
+    expect(digestOf(error)).toBe("NEXT_HTTP_ERROR_FALLBACK;403");
+    expect(await db.siteSetting.count()).toBe(0);
+  });
+
+  it("accepts the CAREERS type for a SUPER_ADMIN and stores it under its own key", async () => {
     asRole("SUPER_ADMIN");
     const result = await saveRecipients(null, recipientsForm("CAREERS", "hr@x.com"));
     expect(result).toMatchObject({ ok: true, type: "CAREERS" });

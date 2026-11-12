@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomInt } from "node:crypto";
 import { z } from "zod";
 import { Prisma, type EnquiryType } from "@/generated/prisma/client";
-import { validateAttachment } from "@/features/enquiries/attachment-rules";
+import { MAX_ATTACHMENT_BYTES, validateAttachment } from "@/features/enquiries/attachment-rules";
 import { parseRecipients, recipientsKey } from "@/features/enquiries/recipients";
 import { generateReference } from "@/features/enquiries/reference";
 import {
@@ -250,6 +250,11 @@ export async function readAndValidateAttachments(
   for (const entry of entries) {
     if (typeof entry === "string") {
       errors.push("Attachments must be files");
+      continue;
+    }
+    // Refuse an oversized file before copying it into memory (validateAttachment checks again).
+    if (entry.size > MAX_ATTACHMENT_BYTES) {
+      errors.push(`${displayName(entry.name)}: File is larger than 10 MB`);
       continue;
     }
     const bytes = new Uint8Array(await entry.arrayBuffer());

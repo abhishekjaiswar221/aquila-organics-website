@@ -1,7 +1,6 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { NextResponse, type NextRequest } from "next/server";
 import { adminRedirectTarget, isAdminPath, isPrefetchRequest } from "@/features/admin/proxy-redirect";
-import { RESERVED_JOB_SLUGS } from "@/features/careers/job-schema";
 import { isUnknownApplicationPath } from "@/features/pages/application-guard";
 
 const PRODUCT_PREFIX = "/aroma-chemicals/";
@@ -23,7 +22,9 @@ async function careersResponse(request: NextRequest, pathname: string): Promise<
   } catch {
     slug = "";
   }
-  if (RESERVED_JOB_SLUGS.has(slug)) return NextResponse.next();
+  // /careers/apply is a real page. Every other one-segment path (including /careers/confirmation, which only
+  // exists two segments deep) must be a published opening or answer a real 404.
+  if (slug === "apply") return NextResponse.next();
   if (!slug) return NextResponse.rewrite(new URL("/_catalogue/not-found", request.url));
   try {
     const { isPublishedJobSlug } = await import("@/features/careers/job-queries");

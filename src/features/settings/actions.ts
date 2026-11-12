@@ -15,8 +15,10 @@ import { requireAction } from "@/lib/permissions";
 export type SettingsFormState = { ok: boolean; message: string; type?: string } | null;
 
 export async function saveRecipients(_prev: SettingsFormState, formData: FormData): Promise<SettingsFormState> {
-  const actor = await requireAction("settings.edit");
+  // The careers notice carries candidate details, so only the people who may see applications
+  // (HR manager, super admin) choose who receives it; settings.edit (administrators) must not.
   const type = formData.get("type");
+  const actor = await requireAction(type === "CAREERS" ? "applications.update" : "settings.edit");
   if (!isRecipientType(type)) return { ok: false, message: "Choose a valid enquiry type." };
   const raw = formData.get("recipients");
   const parsed = parseRecipientsInput(typeof raw === "string" ? raw : "");

@@ -12,7 +12,7 @@ import { testIp } from "./support/rfq-db";
  * empty state.
  */
 
-const { superAdmin, administrator, salesManager } = ADMIN_USERS;
+const { superAdmin, administrator, salesManager, hrManager } = ADMIN_USERS;
 
 // "Save recipients" plus a screen-reader-only ": <type>" suffix.
 const SAVE_AROMA = /^Save recipients\s*: Aroma chemicals quotations$/;
@@ -49,7 +49,14 @@ test.describe("admin settings @catalogue-write", () => {
       await expect(page.getByText(/valid email|invalid|not a valid/i).first()).toBeVisible();
       expect(await storedRecipients("AROMA_CHEMICALS")).toEqual([one, two]);
 
-      // Careers is an editable row like the others: empty until set, then saved and shown after a reload.
+      // Careers recipients carry candidate details, so an administrator does not see or edit them here.
+      await expect(page.getByLabel("Careers applications")).toHaveCount(0);
+      await expect(page.getByText(/managed by HR on the Applications page/i)).toBeVisible();
+
+      // The HR manager edits them on the Applications page: empty until set, then saved and shown after a reload.
+      await page.context().clearCookies();
+      await signInViaApi(page, hrManager);
+      await page.goto("/admin/applications");
       const careers = page.getByLabel("Careers applications");
       await expect(careers).toBeEnabled();
       await expect(careers).toHaveValue("");

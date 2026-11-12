@@ -32,7 +32,9 @@ export function jobPostingJsonLd(job: PublishedJob, baseUrl: string): object | n
     title,
     description,
     datePosted: job.publishedAt.toISOString(),
-    ...(job.closesOn ? { validThrough: job.closesOn.toISOString().slice(0, 10) } : {}),
+    // The site shows an opening through the end of its closing day (UTC), so the structured data says the same
+    // instead of a bare date that consumers may read as the start of that day.
+    ...(job.closesOn ? { validThrough: `${job.closesOn.toISOString().slice(0, 10)}T23:59:59Z` } : {}),
     employmentType: EMPLOYMENT_TYPE_LD[job.employmentType],
     url: absoluteUrl(baseUrl, jobPath(job.slug)),
     hiringOrganization: { "@type": "Organization", name: company.name, sameAs: baseUrl },

@@ -27,9 +27,14 @@ describe("proxy: /careers/:slug", () => {
     expect(isRewriteTo404(await call("/careers/not-public"))).toBe(true);
   });
 
-  it("never looks up the reserved routes", async () => {
+  it("never looks up the apply page", async () => {
     expect(passesThrough(await call("/careers/apply"))).toBe(true);
     expect(lookup).not.toHaveBeenCalled();
+  });
+
+  it("answers a real 404 for /careers/confirmation (only /careers/apply/confirmation exists)", async () => {
+    lookup.mockResolvedValue(false);
+    expect(isRewriteTo404(await call("/careers/confirmation"))).toBe(true);
   });
 
   it("does not touch the list, the confirmation or deeper paths", async () => {

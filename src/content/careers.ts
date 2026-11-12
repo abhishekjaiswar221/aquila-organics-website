@@ -51,7 +51,8 @@ export const careersFormNotice: Block<{ collected: string; access: string; reten
   status: "needs-client-confirmation",
   data: {
     collected: "We collect your name, email address, telephone number, country, message and CV.",
-    access: "Only the Aquila Organics HR team can see them.",
+    access:
+      "Only the Aquila Organics HR team can see them, and a notification email with your details (not your CV file) goes to the people HR chooses.",
     retention: "How long we keep them is to be confirmed by Aquila.",
     deletion: "To ask us to delete your application, follow the instructions in the",
   },

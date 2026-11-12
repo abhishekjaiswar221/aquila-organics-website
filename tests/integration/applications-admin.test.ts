@@ -363,20 +363,26 @@ describe("deleteApplication", () => {
     await expectNoPersonalData();
   });
 
-  it("a storage failure still deletes the rows, is logged by class name and audited", async () => {
+  it("a storage failure still deletes the rows, tells the user, and keeps the orphaned file's key in the audit log", async () => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { app } = await makeApp();
+    const { app, key } = await makeApp();
     state.failDelete = true;
     const result = await deleteApplication(null, idForm(app.id));
-    expect(result).toMatchObject({ ok: true });
+    // Not plain success: the CV is still in storage and the user must not believe it was removed.
+    expect(result).toMatchObject({ ok: true, message: expect.stringContaining("could not be removed from storage") });
     expect(await db.jobApplication.count()).toBe(0);
     expect(await db.applicationFile.count()).toBe(0);
     const rows = await auditFor("application.delete");
-    expect(rows.map((r) => r.detail)).toEqual([{ files: 1 }, { storageCleanup: "failed" }]);
+    // The row is gone, so the opaque key is the only way to find the stored object again.
+    expect(rows.map((r) => r.detail)).toEqual([{ files: 1 }, { storageCleanup: "failed", orphanedObject: key }]);
     const logged = JSON.stringify(errors.mock.calls);
     for (const secret of [KEY_PREFIX, NAME, EMAIL, "storage down"]) expect(logged).not.toContain(secret);
     expect(logged).toContain("Error");
-    await expectNoPersonalData();
+    // Candidate data stays out of the audit log; only the random object key is recorded on this path.
+    const dump = JSON.stringify(await db.auditLog.findMany());
+    for (const secret of [NAME, "Casey", EMAIL, "casey.candidate", PHONE, MESSAGE, CV_NAME, IP_HASH, UA]) {
+      expect(dump).not.toContain(secret);
+    }
   });
 
   it("rolls everything back when the audit row cannot be written (rows and object stay)", async () => {
@@ -572,7 +578,7 @@ describe("CV download route", () => {
 describe("careers recipients setting", () => {
   const TOKEN = "5a4b3c2d-1e0f-4a9b-8c7d-6e5f4a3b2c1d";
 
-  it.each(["SUPER_ADMIN", "ADMINISTRATOR"] as const)("%s can save Careers recipients and the submit uses them", async (role) => {
+  it.each(["SUPER_ADMIN", "HR_MANAGER"] as const)("%s can save Careers recipients and the submit uses them", async (role) => {
     signedInAs(role);
     const fd = new FormData();
     fd.set("type", "CAREERS");
@@ -604,7 +610,7 @@ describe("careers recipients setting", () => {
     await rm(state.root, { recursive: true, force: true });
   });
 
-  it.each(["HR_MANAGER", "SALES_MANAGER", "CONTENT_EDITOR"] as const)("%s is refused saving recipients with a 403", async (role) => {
+  it.each(["ADMINISTRATOR", "SALES_MANAGER", "CONTENT_EDITOR"] as const)("%s is refused saving Careers recipients with a 403 (they may not see candidates)", async (role) => {
     signedInAs(role);
     const fd = new FormData();
     fd.set("type", "CAREERS");

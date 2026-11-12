@@ -113,16 +113,18 @@ export async function deleteApplication(_prev: ApplicationFormState, formData: F
   if (!keys) return fail(NOT_FOUND);
 
   const storage = getStorage();
-  let storageFailed = false;
+  const orphaned: string[] = [];
   for (const key of keys) {
     try {
       await storage.delete(key);
     } catch (err) {
-      storageFailed = true;
+      orphaned.push(key);
       console.error("[admin] application file removal failed:", errorClass(err));
     }
   }
-  if (storageFailed) {
+  for (const key of orphaned) {
+    // The row (the only other record of the key) is already gone, so the opaque random key goes into the
+    // audit log: it is not personal data, and without it the stored CV could never be found and removed.
     await recordAuditBestEffort({
       actorId: actor.userId,
       actorRole: actor.role,
@@ -130,8 +132,15 @@ export async function deleteApplication(_prev: ApplicationFormState, formData: F
       entityType: "application",
       entityId: id,
       outcome: "ok",
-      detail: { storageCleanup: "failed" },
+      detail: { storageCleanup: "failed", orphanedObject: key },
     });
+  }
+  if (orphaned.length > 0) {
+    return {
+      ok: true,
+      message:
+        "Application deleted, but its CV file could not be removed from storage. A super admin can find the file reference in the audit log and remove it.",
+    };
   }
   // No refresh(): it would re-render this (now deleted) application's page as Not found before the form
   // can send the user back to the list.

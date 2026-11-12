@@ -93,9 +93,11 @@ export default function PrivacyPage() {
             , we receive your name, email address, telephone number (optional), country (optional), the message you
             write (optional), your CV (a PDF or DOCX file), the opening you applied for, and the time you agreed to
             this notice. We also store your browser&rsquo;s user agent and a one-way code derived from your IP
-            address, for the same reasons as above. Your CV and details are visible only to Aquila&rsquo;s HR team
-            and super administrators, who can review, download and delete them. They are not shown on the website,
-            and the acknowledgement we send you contains only your reference.
+            address, for the same reasons as above. Your CV and details are visible in the admin only to
+            Aquila&rsquo;s HR team and super administrators, who can review, download and delete them. A
+            notification email with your details (but not your CV file) is also sent to the careers recipients that
+            HR chooses, so a copy may remain in those mailboxes after an application is deleted from the website.
+            They are not shown on the website, and the acknowledgement we send you contains only your reference.
           </p>
         </Section>
 

@@ -48,7 +48,7 @@ describe("jobPostingJsonLd", () => {
   it("includes validThrough only when the opening has a closing date", () => {
     expect(jobPostingJsonLd(job(), BASE)).not.toHaveProperty("validThrough");
     expect(jobPostingJsonLd(job({ closesOn: new Date("2026-12-31T00:00:00Z") }), BASE)).toMatchObject({
-      validThrough: "2026-12-31",
+      validThrough: "2026-12-31T23:59:59Z",
     });
   });
 
