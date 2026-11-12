@@ -44,7 +44,7 @@ Each of the 18 also has an `/index.php/...` twin, plus the old home URL `/index.
 
 | Old URL | Why | Delivered in |
 |---|---|---|
-| `/careers` | The new careers pages are in the full-admin sub-project. Until then the old URL answers 404 on the new site. | Full admin and CMS |
+| `/careers` | Same URL on the new site: the new careers pages (list, openings, apply form) are live. No redirect needed. | Careers sub-project |
 | `/index.php/methyl-chloroacetate`, `/index.php/ethyl-chloroacetate`, `/index.php/aldehyde-c-16` | Old product pages. The new catalogue slugs only exist once the client verifies and publishes those products (`/aroma-chemicals/<slug>`), so the mapping cannot be fixed yet. | Launch, after products are published |
 | Datasheet and certificate files under `/images/datasheets/` and `/images/certifications/` | Files were never pages; the new site serves product documents through `/aroma-chemicals/documents/<id>` once uploaded. | Launch |
 | Search Console check | Compare the old site's indexed URLs with this table before the domain switch. | Launch |

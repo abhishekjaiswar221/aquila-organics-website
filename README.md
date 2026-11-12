@@ -132,18 +132,19 @@ Four roles may use the admin (below). Any other role gets a 403 page. Sign-in is
 
 `can(role, action)` in `src/lib/access.ts` is the single permission table; the navigation shows only what a role may open.
 
-| Action | Super admin | Administrator | Sales manager | Content editor |
-|---|---|---|---|---|
-| Enquiries: view and update | yes | no | yes | no |
-| Products and categories: create and edit | yes | yes | yes | yes |
-| Products: publish, unpublish, archive | yes | yes | yes | no |
-| Products: mark verified | yes | no | no | no |
-| Product documents: upload and delete | yes | yes | no | yes |
-| Settings (notification recipients) | yes | yes | no | no |
-| Users | yes | no | no | no |
-| Audit log | yes | no | no | no |
+| Action | Super admin | Administrator | Sales manager | Content editor | HR manager |
+|---|---|---|---|---|---|
+| Enquiries: view and update | yes | no | yes | no | no |
+| Products and categories: create and edit | yes | yes | yes | yes | no |
+| Products: publish, unpublish, archive | yes | yes | yes | no | no |
+| Products: mark verified | yes | no | no | no | no |
+| Product documents: upload and delete | yes | yes | no | yes | no |
+| Settings (notification recipients) | yes | yes | no | no | no |
+| Users | yes | no | no | no | no |
+| Audit log | yes | no | no | no | no |
+| Careers: job openings, applications, CV download | yes | no | no | no | yes |
 
-`SALES_EXECUTIVE` and `HR_MANAGER` exist in the schema but have no admin access yet. Editing a published product's public fields (anything but the internal source note) unpublishes it and clears its verified flag in the same transaction, so a super admin must verify it again before it can go live. Two people editing the same product: the second save is refused ("This product was changed by someone else").
+`SALES_EXECUTIVE` exists in the schema but has no admin access. An HR manager signs in to `/admin/applications` (the bare `/admin` page sends each role to its own first page) and sees only Jobs and Applications in the navigation; every other admin page answers 403. Editing a published product's public fields (anything but the internal source note) unpublishes it and clears its verified flag in the same transaction, so a super admin must verify it again before it can go live. Two people editing the same product: the second save is refused ("This product was changed by someone else").
 
 ### User onboarding
 
@@ -152,6 +153,20 @@ A super admin opens `/admin/users`, enters a name, email and role, and presses C
 ### Audit log
 
 Every admin change (product create, update, status, verification and re-verification; categories; documents; recipients; user changes; enquiry status) writes a row to `audit_log` inside the same transaction as the change, so a failed audit write rolls the change back. Rows hold the actor, role, action, entity type and id, outcome (`ok`, `denied`, `rejected`), changed field names and a few ids or counts. They never hold passwords, email addresses, names or free text. A super admin reads it at `/admin/audit` (filter by action, entity type and date; 50 rows per page; times are UTC). Not covered: changing your own password (`changeOwnPassword` is not audited), and rows are never pruned.
+
+### Careers
+
+Public pages: `/careers` (published openings, or an empty state with a general-application link), `/careers/<slug>`, `/careers/apply` (`?job=<slug>` preselects a currently published opening; anything else is a general application) and `/careers/apply/confirmation` (shows the reference only). Apply and confirmation are `noindex`; `/careers` and published openings are in the sitemap.
+
+**Roles.** Only the HR manager and the super admin can open Jobs and Applications, download CVs or delete applications. Administrator, sales manager and content editor get a 403 page (and an empty 403 from the CV route); signed-out requests get the login redirect (401 from the CV route). Create an HR user at `/admin/users` (role "HR manager"); they must change the one-time password at first sign-in.
+
+**Publishing an opening.** In `/admin/jobs` choose New opening, fill title, location, summary and description (plain text; a blank line starts a paragraph) and save: it is a draft and is not public. Press Publish on the list to put it on the site at once; Close (or its closing date passing) removes it again and its URL answers a real 404. Only a draft with no applications can be deleted. No job content is invented by the site: only what HR enters appears.
+
+**Applications.** A candidate sends name, email, optional telephone, country and message, and one CV (PDF or DOCX, up to 10 MB, content checked). HR reviews them at `/admin/applications` (filter by status or opening), changes the status (New, Reviewing, Shortlisted, Interview, Offered, Hired, Rejected) and downloads the CV from the detail page (every download is audited). Candidate data never goes into the audit log, logs or the acknowledgement email. Notification recipients for new applications are the "Careers applications" row in Settings.
+
+**Deleting an application** is a two-step action on its detail page ("Delete application", then "Yes, delete application and CV"). It removes the application, its file rows and the stored CV, and writes one audit row (ids and a file count only). It cannot be undone. There is no automatic purge.
+
+**Retention** of applications is to be confirmed by Aquila; the form and the privacy notice say so. Live email delivery and the Cloudflare R2 driver are untested against real services for careers (as for the other forms).
 
 ### Storage and Cloudflare R2
 

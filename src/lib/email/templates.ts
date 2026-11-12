@@ -172,6 +172,71 @@ export function messageAcknowledgementEmail(e: MessageAcknowledgementInput): Ren
   return { subject, html, text };
 }
 
+/**
+ * Acknowledgement for a careers application. Same rule as the other
+ * acknowledgements: the reference and constant sentences only. Not the
+ * candidate's name, the job title or anything else they typed.
+ */
+export interface CareersAcknowledgementInput {
+  reference: string;
+}
+
+export function careersAcknowledgementEmail(e: CareersAcknowledgementInput): RenderedEmail {
+  const subject = oneLine(`We received your application ${e.reference}`);
+  const html = wrapHtml(
+    `<p>${h(ACK_GREETING)}</p>` +
+      `<p>Thank you for applying. Your reference is <strong>${h(e.reference)}</strong>.</p>` +
+      `<p>We have received your application.</p>` +
+      `<p>Our team will review it. Please quote the reference in any correspondence.</p>` +
+      `<p>Aquila Organics</p>`,
+  );
+  const text =
+    `${ACK_GREETING}\n\n` +
+    `Thank you for applying. Your reference is ${e.reference}.\n\n` +
+    `We have received your application.\n\n` +
+    `Our team will review it. Please quote the reference in any correspondence.\n\n` +
+    `Aquila Organics\n`;
+  return { subject, html, text };
+}
+
+export interface CareersInternalInput {
+  reference: string;
+  /** The opening's title, or "General application". */
+  jobTitle: string;
+  fullName: string;
+  email: string;
+  phone?: string;
+  country?: string;
+  message?: string;
+  /** Sanitised display name of the CV file. */
+  cvName: string;
+}
+
+/** Internal notification for a careers application; the subject carries no candidate text. */
+export function careersInternalEmail(e: CareersInternalInput): RenderedEmail {
+  const subject = oneLine(`New job application ${e.reference}`);
+  const details = renderDetails([
+    ["Position", e.jobTitle],
+    ["Name", e.fullName],
+    ["Email", e.email],
+    ["Phone", e.phone],
+    ["Country", e.country],
+    ["CV", e.cvName],
+  ]);
+  const html = wrapHtml(
+    `<p>New job application <strong>${h(e.reference)}</strong>.</p>` +
+      `<table>${details.html}</table>` +
+      (e.message ? `<p>Message:</p><p style="white-space:pre-wrap">${h(e.message)}</p>` : "") +
+      `<p>The CV is available in the admin applications inbox.</p>`,
+  );
+  const text =
+    `New job application ${e.reference}\n\n` +
+    details.text +
+    (e.message ? `\n\nMessage:\n${e.message}` : "") +
+    `\n\nThe CV is available in the admin applications inbox.\n`;
+  return { subject, html, text };
+}
+
 export interface InternalMessageNotificationInput {
   reference: string;
   /** Human label of the enquiry type, e.g. "Flavours". */

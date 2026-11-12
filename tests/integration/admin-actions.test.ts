@@ -36,7 +36,7 @@ const DENIED: Role[] = ["CONTENT_EDITOR", "HR_MANAGER", "SALES_EXECUTIVE", "ADMI
 // Roles without products.publish (ADMINISTRATOR may publish).
 const DENIED_PUBLISH: Role[] = ["CONTENT_EDITOR", "HR_MANAGER", "SALES_EXECUTIVE"];
 // Roles that never enter the admin; admin roles other than SUPER_ADMIN get a soft "Not permitted".
-const NO_ADMIN: Role[] = ["HR_MANAGER", "SALES_EXECUTIVE"];
+const NO_ADMIN: Role[] = ["SALES_EXECUTIVE"];
 
 const cookies = new Map<Role, string>();
 const userIds = new Map<Role, string>();
@@ -266,7 +266,7 @@ describe("setProductVerified", () => {
     expect((await db.product.findUniqueOrThrow({ where: { id: p.id } })).verified).toBe(false);
   });
 
-  it.each(["ADMINISTRATOR", "CONTENT_EDITOR"] as const)("refuses %s softly: not permitted, nothing changes", async (role) => {
+  it.each(["ADMINISTRATOR", "CONTENT_EDITOR", "HR_MANAGER"] as const)("refuses %s softly: not permitted, nothing changes", async (role) => {
     const p = await makeProduct("test-v");
     signedInAs(role);
     expect(await setProductVerified(p.id, true)).toEqual({ ok: false, error: "Not permitted" });

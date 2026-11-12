@@ -4,7 +4,7 @@ import { parseRecipients, recipientsKey } from "@/features/enquiries/recipients"
 import { db } from "@/lib/db";
 
 /** Enquiry types whose internal notification goes to an editable list. */
-export const RECIPIENT_TYPES = ["FRAGRANCES", "AROMA_CHEMICALS", "FLAVOURS", "GENERAL"] as const satisfies readonly EnquiryType[];
+export const RECIPIENT_TYPES = ["FRAGRANCES", "AROMA_CHEMICALS", "FLAVOURS", "GENERAL", "CAREERS"] as const satisfies readonly EnquiryType[];
 export type RecipientType = (typeof RECIPIENT_TYPES)[number];
 
 export function isRecipientType(value: unknown): value is RecipientType {

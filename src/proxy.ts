@@ -4,6 +4,38 @@ import { adminRedirectTarget, isAdminPath, isPrefetchRequest } from "@/features/
 import { isUnknownApplicationPath } from "@/features/pages/application-guard";
 
 const PRODUCT_PREFIX = "/aroma-chemicals/";
+const CAREERS_PREFIX = "/careers/";
+
+/**
+ * Careers (/careers/:slug): the same real-404 check as products. Only a
+ * one-segment path is checked; /careers/apply (and its /confirmation child, which
+ * the matcher does not match) are routes, not openings. An unknown, draft, closed
+ * or expired slug is rewritten to the unmatched path; the page keeps its own
+ * notFound() as a second line of defence.
+ */
+async function careersResponse(request: NextRequest, pathname: string): Promise<NextResponse> {
+  const parts = pathname.split("/");
+  if (parts.length !== 3) return NextResponse.next();
+  let slug: string;
+  try {
+    slug = decodeURIComponent(parts[2]);
+  } catch {
+    slug = "";
+  }
+  // /careers/apply is a real page. Every other one-segment path (including /careers/confirmation, which only
+  // exists two segments deep) must be a published opening or answer a real 404.
+  if (slug === "apply") return NextResponse.next();
+  if (!slug) return NextResponse.rewrite(new URL("/_catalogue/not-found", request.url));
+  try {
+    const { isPublishedJobSlug } = await import("@/features/careers/job-queries");
+    if (await isPublishedJobSlug(slug)) return NextResponse.next();
+  } catch (err) {
+    // Database down: fail open (the page's own notFound() still hides an unpublished opening).
+    console.error("[proxy] job slug lookup failed:", err instanceof Error ? err.name : "unknown");
+    return NextResponse.next();
+  }
+  return NextResponse.rewrite(new URL("/_catalogue/not-found", request.url));
+}
 
 /*
  * Two independent branches, chosen by path; neither ever runs the other's code.
@@ -51,6 +83,8 @@ export async function proxy(request: NextRequest) {
     return NextResponse.rewrite(new URL("/_catalogue/not-found", request.url));
   }
 
+  if (pathname.startsWith(CAREERS_PREFIX)) return careersResponse(request, pathname);
+
   if (!pathname.startsWith(PRODUCT_PREFIX)) return NextResponse.next();
 
   const raw = pathname.split("/")[2] ?? "";
@@ -95,6 +129,15 @@ export const config = {
       // Fragrance and flavour application pages: a slug check only (no database), so
       // unknown slugs answer a real 404. Prefetches skip it like the other branches.
       source: "/:segment(fragrances|flavours)/:application",
+      missing: [
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "next-router-segment-prefetch" },
+      ],
+    },
+    {
+      // One segment below /careers: opening pages (apply is let through in code;
+      // apply/confirmation is two segments). Prefetches skip it like the others.
+      source: "/careers/:slug",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "next-router-segment-prefetch" },

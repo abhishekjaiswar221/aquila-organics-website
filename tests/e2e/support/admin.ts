@@ -2,7 +2,7 @@
 // TEST-database fixtures for products and enquiries. Every DB helper goes
 // through withDb, which refuses anything but a *_test database.
 import { randomBytes, randomInt, randomUUID } from "node:crypto";
-import { rm, writeFile } from "node:fs/promises";
+import { access, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { expect, type Page } from "@playwright/test";
 import { E2E_BASE_URL, E2E_STORAGE_ROOT } from "./e2e-env";
@@ -293,4 +293,170 @@ export async function storedRecipients(type: string): Promise<unknown> {
 
 export async function clearRecipients(): Promise<void> {
   await withDb((c) => c.query(`DELETE FROM "site_setting" WHERE "key" LIKE 'notification.recipients.%'`));
+}
+
+// ---------------------------------------------------------------------------
+// Careers fixtures. Openings and applications are inserted directly (like the
+// products and enquiries above); CV files go into the same storage root the e2e
+// server reads, and every helper removes what it created.
+// ---------------------------------------------------------------------------
+
+/** A small, valid PDF (magic bytes the upload check accepts). */
+export function tinyPdf(tag = randomBytes(4).toString("hex")): Buffer {
+  return Buffer.from(`%PDF-1.4\n% TEST careers e2e CV ${tag}\n%%EOF\n`);
+}
+
+export type TestJob = { id: string; slug: string; title: string };
+
+/** A throwaway opening with a unique TEST- title. PUBLISHED ones are public: use them only in @catalogue-write tests. */
+export async function createJobOpening(status: "DRAFT" | "PUBLISHED" | "CLOSED", label = "job"): Promise<TestJob> {
+  const tag = randomBytes(4).toString("hex");
+  const job = { id: randomUUID(), slug: `test-job-${label}-${tag}`, title: `TEST-Job ${label} ${tag}` };
+  await withDb((c) =>
+    c.query(
+      `INSERT INTO "job_opening" ("id", "slug", "title", "location", "employmentType", "summary", "description", "status", "publishedAt", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, 'TEST-Location', 'FULL_TIME', 'TEST summary of a throwaway opening.', E'TEST first paragraph.\n\nTEST second paragraph.',
+               $4::"JobStatus", CASE WHEN $4::text = 'DRAFT' THEN NULL ELSE now() END, now(), now())`,
+      [job.id, job.slug, job.title, status],
+    ),
+  );
+  return job;
+}
+
+export type StoredApplication = {
+  id: string;
+  reference: string;
+  jobId: string | null;
+  jobTitleSnapshot: string;
+  fullName: string;
+  email: string;
+  status: string;
+  message: string | null;
+  files: { id: string; filename: string; mimeType: string; sizeBytes: number; storageKey: string }[];
+};
+
+/** Every application stored for this email address (each test uses a unique one). */
+export async function applicationsFor(email: string): Promise<StoredApplication[]> {
+  return withDb(async (c) => {
+    const { rows } = await c.query<Omit<StoredApplication, "files">>(
+      `SELECT "id", "reference", "jobId", "jobTitleSnapshot", "fullName", "email", "status"::text AS "status", "message"
+       FROM "job_application" WHERE "email" = $1 ORDER BY "createdAt"`,
+      [email],
+    );
+    const out: StoredApplication[] = [];
+    for (const row of rows) {
+      const files = await c.query<StoredApplication["files"][number]>(
+        `SELECT "id", "filename", "mimeType", "sizeBytes", "storageKey" FROM "application_file" WHERE "applicationId" = $1`,
+        [row.id],
+      );
+      out.push({ ...row, files: files.rows });
+    }
+    return out;
+  });
+}
+
+export type TestApplication = StoredApplication & { cv: Buffer };
+
+/** An application with a stored PDF, as the careers form would have left it. */
+export async function createApplication(opts: { job?: TestJob; email?: string } = {}): Promise<TestApplication> {
+  const tag = randomBytes(4).toString("hex");
+  const id = randomUUID();
+  const email = opts.email ?? `e2e-careers-${tag}@test-candidate.example`;
+  const cv = tinyPdf(tag);
+  const file = {
+    id: randomUUID(),
+    filename: `TEST-cv-${tag}.pdf`,
+    mimeType: "application/pdf",
+    sizeBytes: cv.length,
+    storageKey: `e2e-careers-${tag}-cv`,
+  };
+  await writeFile(path.join(E2E_STORAGE_ROOT, file.storageKey), cv);
+  let reference = "";
+  await withDb(async (c) => {
+    for (let attempt = 1; ; attempt++) {
+      // CA-<year>-9xxxxx: far above the sequence the app allocates in a fresh test database.
+      reference = `CA-2026-9${String(randomInt(0, 100_000)).padStart(5, "0")}`;
+      try {
+        await c.query(
+          `INSERT INTO "job_application" ("id", "reference", "jobId", "jobTitleSnapshot", "fullName", "email", "phone", "country", "message", "consentAt", "status", "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, $4, $5, $6, '+91 22 0000 0000', 'India', 'TEST candidate message', now(), 'NEW', now(), now())`,
+          [id, reference, opts.job?.id ?? null, opts.job?.title ?? "General application", `TEST Candidate ${tag}`, email],
+        );
+        break;
+      } catch (err) {
+        if (attempt < 5 && (err as { code?: string }).code === "23505") continue;
+        throw err;
+      }
+    }
+    await c.query(
+      `INSERT INTO "application_file" ("id", "applicationId", "filename", "mimeType", "sizeBytes", "storageKey", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, $6, now(), now())`,
+      [file.id, id, file.filename, file.mimeType, file.sizeBytes, file.storageKey],
+    );
+  });
+  return {
+    id,
+    reference,
+    jobId: opts.job?.id ?? null,
+    jobTitleSnapshot: opts.job?.title ?? "General application",
+    fullName: `TEST Candidate ${tag}`,
+    email,
+    status: "NEW",
+    message: "TEST candidate message",
+    files: [file],
+    cv,
+  };
+}
+
+/** Whether a stored object still exists in the e2e storage root. */
+export async function storedFileExists(storageKey: string): Promise<boolean> {
+  const file = path.resolve(E2E_STORAGE_ROOT, storageKey);
+  if (path.dirname(file) !== E2E_STORAGE_ROOT) throw new Error("storage key outside the e2e root");
+  try {
+    await access(file);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Removes this test's applications (file rows cascade), their stored objects and their audit rows. */
+export async function deleteApplicationsFor(email: string): Promise<void> {
+  for (const a of await applicationsFor(email)) {
+    for (const f of a.files) {
+      const file = path.resolve(E2E_STORAGE_ROOT, f.storageKey);
+      if (path.dirname(file) === E2E_STORAGE_ROOT) await rm(file, { force: true });
+    }
+    await withDb(async (c) => {
+      await c.query(`DELETE FROM "audit_log" WHERE "entityId" = $1`, [a.id]);
+      await c.query(`DELETE FROM "job_application" WHERE "id" = $1`, [a.id]);
+    });
+  }
+}
+
+/** Removes a throwaway opening, any applications still pointing at it, and its audit rows. */
+export async function deleteJobOpening(idOrSlug: { id?: string; slug?: string }): Promise<void> {
+  await withDb(async (c) => {
+    const { rows } = await c.query<{ id: string }>(`SELECT "id" FROM "job_opening" WHERE "id" = $1 OR "slug" = $2`, [
+      idOrSlug.id ?? randomUUID(),
+      idOrSlug.slug ?? "",
+    ]);
+    for (const r of rows) {
+      await c.query(`DELETE FROM "job_application" WHERE "jobId" = $1`, [r.id]);
+      await c.query(`DELETE FROM "audit_log" WHERE "entityId" = $1`, [r.id]);
+      await c.query(`DELETE FROM "job_opening" WHERE "id" = $1`, [r.id]);
+    }
+  });
+}
+
+export async function jobBySlug(
+  slug: string,
+): Promise<{ id: string; title: string; status: string; publishedAt: Date | null } | null> {
+  return withDb(async (c) => {
+    const { rows } = await c.query<{ id: string; title: string; status: string; publishedAt: Date | null }>(
+      `SELECT "id", "title", "status"::text AS "status", "publishedAt" FROM "job_opening" WHERE "slug" = $1`,
+      [slug],
+    );
+    return rows[0] ?? null;
+  });
 }

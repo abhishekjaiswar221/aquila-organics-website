@@ -21,6 +21,7 @@ const ROLE_LABELS: Record<string, string> = {
   SUPER_ADMIN: "Super admin",
   ADMINISTRATOR: "Administrator",
   CONTENT_EDITOR: "Content editor",
+  HR_MANAGER: "HR manager",
   SALES_MANAGER: "Sales manager",
 };
 
@@ -31,7 +32,7 @@ export default async function AdminPanelLayout({ children }: LayoutProps<"/admin
       <SkipLink />
       <header className="bg-charcoal text-ivory">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-6">
-          <Link href="/admin/products" className="font-mono text-xs uppercase tracking-[0.18em] text-ivory">
+          <Link href="/admin" className="font-mono text-xs uppercase tracking-[0.18em] text-ivory">
             Aquila Organics <span className="text-warm-grey">/ Admin</span>
           </Link>
           <AdminNav links={adminLinksFor(user.role)} />

@@ -8,8 +8,8 @@ export default function AdminNotFound() {
       <PageHeader title="Not found" />
       <p className="mt-6 text-sm">
         This record does not exist or has been removed.{" "}
-        <Link href="/admin/enquiries" className={linkCls}>
-          Back to enquiries
+        <Link href="/admin" className={linkCls}>
+          Back to the admin
         </Link>
       </p>
     </>

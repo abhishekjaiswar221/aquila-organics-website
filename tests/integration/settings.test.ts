@@ -99,7 +99,25 @@ describe("saveRecipients", () => {
     expect(await db.auditLog.count()).toBe(0);
   });
 
-  it.each(["CAREERS", "NOPE", "", "__proto__"])("refuses type %j", async (type) => {
+  it("refuses the CAREERS type for an ADMINISTRATOR: candidate details must not be routed by someone who cannot see applications", async () => {
+    asRole("ADMINISTRATOR");
+    const error = await saveRecipients(null, recipientsForm("CAREERS", "me@x.com")).catch((e: unknown) => e);
+    expect(digestOf(error)).toBe("NEXT_HTTP_ERROR_FALLBACK;403");
+    expect(await db.siteSetting.count()).toBe(0);
+  });
+
+  it("accepts the CAREERS type for a SUPER_ADMIN and stores it under its own key", async () => {
+    asRole("SUPER_ADMIN");
+    const result = await saveRecipients(null, recipientsForm("CAREERS", "hr@x.com"));
+    expect(result).toMatchObject({ ok: true, type: "CAREERS" });
+    expect((await getAllRecipients()).CAREERS).toEqual(["hr@x.com"]);
+    const rows = await db.auditLog.findMany();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ entityId: "notification.recipients.CAREERS", detail: { type: "CAREERS", count: 1 } });
+    expect(JSON.stringify(rows[0])).not.toContain("x.com");
+  });
+
+  it.each(["NOPE", "", "__proto__", "ADMIN"])("refuses type %j", async (type) => {
     asRole("SUPER_ADMIN");
     const result = await saveRecipients(null, recipientsForm(type, "a@x.com"));
     expect(result).toMatchObject({ ok: false });

@@ -71,7 +71,7 @@ const atLogin = (next: string) => new RegExp(`${escapeRe(loginFor(next))}$`);
 
 test.describe("admin: access control", () => {
   const SIGNED_OUT: [path: string, next: string][] = [
-    ["/admin", "/admin/products"],
+    ["/admin", "/admin"],
     ["/admin/products", "/admin/products"],
     ["/admin/enquiries", "/admin/enquiries"],
     ["/admin/enquiries/00000000-0000-4000-8000-000000000001", "/admin/enquiries/00000000-0000-4000-8000-000000000001"],
@@ -585,7 +585,7 @@ test.describe("admin: enquiries", () => {
     await page.goto("/admin/enquiries/00000000-0000-4000-8000-00000000abcd");
     await expect(page.getByRole("heading", { level: 1, name: "Not found", exact: true })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Admin" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Back to enquiries" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Back to the admin" })).toBeVisible();
   });
 
   test("enquiries list and detail: noindex, axe, overflow, headings", async ({ page }) => {

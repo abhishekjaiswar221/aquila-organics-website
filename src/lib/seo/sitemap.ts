@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { APPLICATION_SLUGS, applicationPath, flavourSegment, fragranceSegment } from "@/content/segments";
+import { CAREERS_PATH, jobPath } from "@/features/careers/paths";
 import { CATALOGUE_PATH, PRIVACY_PATH, absoluteUrl, productPath } from "./site-url";
 
 export type SitemapProduct = { slug: string; lastModified: Date };
@@ -7,7 +8,11 @@ export type SitemapProduct = { slug: string; lastModified: Date };
 export type SitemapOptions = {
   /** List /sustainability/certifications only once it shows at least one confirmed certificate. */
   certificationsIndexable?: boolean;
+  /** Currently public job openings; /careers itself is always listed. */
+  jobs?: readonly SitemapJob[];
 };
+
+export type SitemapJob = { slug: string; lastModified: Date };
 
 /** Company and sustainability pages: static content, always indexable (certifications is conditional). */
 function companyEntries(baseUrl: string, options: SitemapOptions): MetadataRoute.Sitemap {
@@ -49,6 +54,13 @@ export function buildSitemap(
       lastModified: p.lastModified,
       changeFrequency: "monthly" as const,
       priority: 0.6,
+    })),
+    { url: absoluteUrl(baseUrl, CAREERS_PATH), changeFrequency: "weekly", priority: 0.5 },
+    ...(options.jobs ?? []).map((j) => ({
+      url: absoluteUrl(baseUrl, jobPath(j.slug)),
+      lastModified: j.lastModified,
+      changeFrequency: "weekly" as const,
+      priority: 0.5,
     })),
     { url: absoluteUrl(baseUrl, PRIVACY_PATH), changeFrequency: "yearly", priority: 0.2 },
   ];

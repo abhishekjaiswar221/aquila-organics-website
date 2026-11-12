@@ -173,3 +173,25 @@ describe("validateAttachment name sanitising", () => {
     if (r.ok) expect(r.safeName).not.toMatch(/[\\/:*]/);
   });
 });
+
+describe("validateAttachment with an extension allow-list (careers CV: pdf, docx)", () => {
+  const cv = (name: string, bytes: Uint8Array) =>
+    validateAttachment({ name, size: bytes.length, bytes }, ["pdf", "docx"]);
+  it("accepts a PDF and a DOCX", () => {
+    expect(cv("cv.pdf", pdf())).toMatchObject({ ok: true, mimeType: "application/pdf" });
+    expect(cv("cv.docx", zipWith("word/document.xml"))).toMatchObject({ ok: true });
+  });
+  it("rejects a correctly built PNG, CSV and XLSX", () => {
+    expect(cv("cv.png", png())).toEqual({ ok: false, reason: "File type is not allowed" });
+    expect(cv("cv.csv", enc("a,b\n1,2\n"))).toEqual({ ok: false, reason: "File type is not allowed" });
+    expect(cv("cv.xlsx", zipWith("xl/workbook.xml"))).toEqual({ ok: false, reason: "File type is not allowed" });
+  });
+  it("still checks content: a PNG named .pdf and an empty file are rejected", () => {
+    expect(cv("cv.pdf", png())).toMatchObject({ ok: false });
+    expect(cv("cv.pdf", new Uint8Array())).toMatchObject({ ok: false });
+  });
+  it("the default (no list) still allows every known extension", () => {
+    expect(check("a.png", png())).toMatchObject({ ok: true });
+    expect(check("a.csv", enc("a,b\n"))).toMatchObject({ ok: true });
+  });
+});

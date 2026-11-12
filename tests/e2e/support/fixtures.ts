@@ -106,6 +106,13 @@ export const ADMIN_USERS = {
     role: "CONTENT_EDITOR",
     roleLabel: "Content editor",
   },
+  hrManager: {
+    id: id(0x305),
+    email: "test-hr-manager@admin.example.test",
+    password: "TEST-hr-manager-passphrase",
+    role: "HR_MANAGER",
+    roleLabel: "HR manager",
+  },
 } as const;
 
 export type AdminUser = (typeof ADMIN_USERS)[keyof typeof ADMIN_USERS];

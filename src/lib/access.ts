@@ -14,9 +14,9 @@ export const ROLES = [
   "HR_MANAGER",
 ] as const satisfies readonly Role[];
 
-/** Roles allowed into the admin. SALES_EXECUTIVE and HR_MANAGER stay out until their own sub-projects. */
-export type AdminRole = "SUPER_ADMIN" | "ADMINISTRATOR" | "SALES_MANAGER" | "CONTENT_EDITOR";
-export const ADMIN_ROLES: readonly AdminRole[] = ["SUPER_ADMIN", "ADMINISTRATOR", "SALES_MANAGER", "CONTENT_EDITOR"];
+/** Roles allowed into the admin. SALES_EXECUTIVE stays out until its own sub-project. */
+export type AdminRole = "SUPER_ADMIN" | "ADMINISTRATOR" | "SALES_MANAGER" | "CONTENT_EDITOR" | "HR_MANAGER";
+export const ADMIN_ROLES: readonly AdminRole[] = ["SUPER_ADMIN", "ADMINISTRATOR", "SALES_MANAGER", "CONTENT_EDITOR", "HR_MANAGER"];
 
 export type AdminAction =
   | "enquiries.view"
@@ -27,7 +27,10 @@ export type AdminAction =
   | "documents.manage"
   | "settings.edit"
   | "users.manage"
-  | "audit.view";
+  | "audit.view"
+  | "jobs.manage"
+  | "applications.view"
+  | "applications.update";
 
 /** The one place roles are listed per action (spec section 2). */
 const PERMISSIONS: Record<AdminAction, readonly Role[]> = {
@@ -40,6 +43,9 @@ const PERMISSIONS: Record<AdminAction, readonly Role[]> = {
   "settings.edit": ["SUPER_ADMIN", "ADMINISTRATOR"],
   "users.manage": ["SUPER_ADMIN"],
   "audit.view": ["SUPER_ADMIN"],
+  "jobs.manage": ["SUPER_ADMIN", "HR_MANAGER"],
+  "applications.view": ["SUPER_ADMIN", "HR_MANAGER"],
+  "applications.update": ["SUPER_ADMIN", "HR_MANAGER"],
 };
 
 /** The admin roles allowed to perform an action (empty for an unknown action). */
@@ -62,6 +68,8 @@ const ADMIN_LINKS: { href: string; label: string; action: AdminAction }[] = [
   { href: "/admin/products", label: "Products", action: "products.edit" },
   { href: "/admin/categories", label: "Categories", action: "products.edit" },
   { href: "/admin/enquiries", label: "Enquiries", action: "enquiries.view" },
+  { href: "/admin/jobs", label: "Jobs", action: "jobs.manage" },
+  { href: "/admin/applications", label: "Applications", action: "applications.view" },
   { href: "/admin/settings", label: "Settings", action: "settings.edit" },
   { href: "/admin/users", label: "Users", action: "users.manage" },
   { href: "/admin/audit", label: "Audit log", action: "audit.view" },
@@ -70,6 +78,11 @@ const ADMIN_LINKS: { href: string; label: string; action: AdminAction }[] = [
 /** The admin navigation a role may see (pure; the pages still authorise themselves). */
 export function adminLinksFor(role: Role): { href: string; label: string }[] {
   return ADMIN_LINKS.filter((l) => can(role, l.action)).map(({ href, label }) => ({ href, label }));
+}
+
+/** The first admin page a role lands on: HR has no Products, so it opens the applications inbox. */
+export function adminHomePath(role: Role): string {
+  return role === "HR_MANAGER" ? "/admin/applications" : "/admin/products";
 }
 
 export type SessionInfo = { userId: string; role: unknown; disabled?: boolean; mustChangePassword?: boolean };

@@ -13,6 +13,7 @@ const LABELS = {
   AROMA_CHEMICALS: "Aroma chemicals quotations",
   FLAVOURS: "Flavours enquiries",
   GENERAL: "General contact enquiries",
+  CAREERS: "Careers applications",
 } as const;
 
 export default async function AdminSettingsPage() {
@@ -29,17 +30,14 @@ export default async function AdminSettingsPage() {
           Each enquiry type is sent to its own list. The visitor&apos;s acknowledgement is not affected.
         </p>
         <div className="mt-4">
-          {RECIPIENT_TYPES.map((t) => (
+          {RECIPIENT_TYPES.filter((t) => t !== "CAREERS").map((t) => (
             <RecipientsForm key={t} type={t} label={LABELS[t]} recipients={recipients[t]} />
           ))}
-          <RecipientsForm
-            type="CAREERS"
-            label="Careers applications"
-            recipients={[]}
-            disabled
-            note="Used when the careers section ships."
-          />
         </div>
+        <p className="mt-4 text-sm text-muted-foreground">
+          Careers applications contain candidate details, so their recipients are managed by HR on the Applications page,
+          not here.
+        </p>
       </section>
     </>
   );

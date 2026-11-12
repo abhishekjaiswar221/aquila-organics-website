@@ -37,8 +37,7 @@ export const addresses: { registeredOffice: Address; headOffice: Address } = {
 
 /**
  * Only routes that exist are available (tests/unit/navigation.test.ts checks this against the
- * sitemap). Careers stays unavailable until the careers sub-project ships and is omitted from
- * rendered navigation until then.
+ * sitemap). Careers is listed in the drawer and the footer.
  */
 export const primaryNav: NavItem[] = [
   {
@@ -67,7 +66,7 @@ export const primaryNav: NavItem[] = [
   },
   { label: "About", href: "/about", available: true },
   { label: "Sustainability", href: "/sustainability", available: true },
-  { label: "Careers", href: "/careers", available: false },
+  { label: "Careers", href: "/careers", available: true },
   { label: "Contact", href: "/contact", available: true },
 ];
 
@@ -82,6 +81,7 @@ export const companyNav: NavItem[] = [
   { label: "About", href: "/about", available: true },
   { label: "Innovation", href: "/innovation", available: true },
   { label: "Sustainability", href: "/sustainability", available: true },
+  { label: "Careers", href: "/careers", available: true },
   { label: "Contact", href: "/contact", available: true },
 ];
 
@@ -89,6 +89,7 @@ export const companyNav: NavItem[] = [
 export const footerNav: NavItem[] = [
   { label: "About", href: "/about", available: true },
   { label: "Sustainability", href: "/sustainability", available: true },
+  { label: "Careers", href: "/careers", available: true },
   { label: "Contact", href: "/contact", available: true },
   { label: "Request a quotation", href: "/rfq", available: true },
   { label: "Privacy", href: "/privacy", available: true },

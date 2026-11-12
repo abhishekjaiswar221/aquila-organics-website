@@ -39,10 +39,10 @@ describe("adminRedirectTarget", () => {
     expect(nextOf(target)).toBe("/admin/enquiries?status=NEW&q=a%20b");
   });
 
-  it("bare /admin goes to login with the products list as next", () => {
-    expect(adminRedirectTarget(signedOut("/admin"))).toBe("/admin/login?next=%2Fadmin%2Fproducts");
-    expect(adminRedirectTarget(signedOut("/admin/"))).toBe("/admin/login?next=%2Fadmin%2Fproducts");
-    expect(adminRedirectTarget(signedOut("/admin", { search: "?x=1" }))).toBe("/admin/login?next=%2Fadmin%2Fproducts");
+  it("bare /admin goes to login with the role landing page as next", () => {
+    expect(adminRedirectTarget(signedOut("/admin"))).toBe("/admin/login?next=%2Fadmin");
+    expect(adminRedirectTarget(signedOut("/admin/"))).toBe("/admin/login?next=%2Fadmin");
+    expect(adminRedirectTarget(signedOut("/admin", { search: "?x=1" }))).toBe("/admin/login?next=%2Fadmin");
   });
 
   it("lets any request with a session cookie through (the server decides)", () => {
@@ -99,8 +99,8 @@ describe("adminRedirectTarget", () => {
       expect(next.startsWith("//")).toBe(false);
       expect(new URL(next, "https://site.invalid").origin).toBe("https://site.invalid");
     }
-    expect(nextOf(adminRedirectTarget(signedOut("/admin/../x")))).toBe("/admin/products");
-    expect(nextOf(adminRedirectTarget(signedOut(`/admin/${"a".repeat(600)}`)))).toBe("/admin/products");
+    expect(nextOf(adminRedirectTarget(signedOut("/admin/../x")))).toBe("/admin");
+    expect(nextOf(adminRedirectTarget(signedOut(`/admin/${"a".repeat(600)}`)))).toBe("/admin");
   });
 });
 
@@ -129,12 +129,13 @@ describe("proxy matcher", () => {
   // Next.js strips next-router-prefetch (and the other Flight headers) from
   // request.headers inside the proxy, so router prefetches can only be skipped
   // in the matcher. Both branches skip them the same way.
-  it("skips router prefetches for product, segment-application and admin paths alike, in the matcher", async () => {
+  it("skips router prefetches for product, segment-application, careers and admin paths alike, in the matcher", async () => {
     const { config } = await import("@/proxy");
     const entries = config.matcher.map((m) => (typeof m === "string" ? { source: m, missing: [] } : m));
     expect(entries.map((e) => e.source)).toEqual([
       "/aroma-chemicals/:slug",
       "/:segment(fragrances|flavours)/:application",
+      "/careers/:slug",
       "/admin/:path*",
     ]);
     for (const entry of entries) {

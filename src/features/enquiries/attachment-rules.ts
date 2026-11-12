@@ -71,11 +71,19 @@ function sanitiseName(raw: string): string {
     .trim();
 }
 
-export function validateAttachment(file: {
-  name: string;
-  size: number;
-  bytes: Uint8Array;
-}): AttachmentResult {
+/**
+ * `allowed` narrows the accepted extensions (lower case, no dot, e.g.
+ * ["pdf", "docx"]); the default is every known extension. The magic-byte and
+ * size checks always apply.
+ */
+export function validateAttachment(
+  file: {
+    name: string;
+    size: number;
+    bytes: Uint8Array;
+  },
+  allowed?: readonly string[],
+): AttachmentResult {
   const { bytes } = file;
   if (bytes.length === 0 || file.size === 0) return { ok: false, reason: "File is empty" };
   if (bytes.length > MAX_ATTACHMENT_BYTES || file.size > MAX_ATTACHMENT_BYTES) {
@@ -91,7 +99,7 @@ export function validateAttachment(file: {
   }
   const ext = cleaned.slice(dot + 1).toLowerCase();
   const rule = Object.hasOwn(EXTENSIONS, ext) ? EXTENSIONS[ext] : undefined;
-  if (!rule) return { ok: false, reason: "File type is not allowed" };
+  if (!rule || (allowed && !allowed.includes(ext))) return { ok: false, reason: "File type is not allowed" };
 
   const sniffed = sniff(bytes);
   if (rule.kind === "text") {
