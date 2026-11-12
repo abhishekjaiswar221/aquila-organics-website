@@ -66,7 +66,12 @@ export function buildSitemap(
   ];
 }
 
-export function robotsConfig(baseUrl: string): MetadataRoute.Robots {
+/**
+ * robots.txt. With `noindex` (the DEMO_NOINDEX=1 setting on a demo deployment) the whole site is disallowed
+ * and no sitemap is offered, so a shared demo link cannot end up in search results.
+ */
+export function robotsConfig(baseUrl: string, options: { noindex?: boolean } = {}): MetadataRoute.Robots {
+  if (options.noindex) return { rules: [{ userAgent: "*", disallow: "/" }] };
   return {
     rules: [{ userAgent: "*", allow: "/", disallow: ["/admin", "/api"] }],
     sitemap: absoluteUrl(baseUrl, "/sitemap.xml"),

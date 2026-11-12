@@ -23,6 +23,8 @@ const nextConfig: NextConfig = {
   // robots.txt disallows /admin and /api; the sitemap never lists them).
   async headers() {
     const noindex = [{ key: "X-Robots-Tag", value: "noindex, nofollow" }];
+    // A demo deployment (DEMO_NOINDEX=1) is kept out of search results entirely.
+    if (process.env.DEMO_NOINDEX === "1") return [{ source: "/:path*", headers: noindex }];
     return [
       { source: "/admin", headers: noindex },
       { source: "/admin/:path*", headers: noindex },

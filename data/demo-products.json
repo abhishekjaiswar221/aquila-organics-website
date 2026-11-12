@@ -1,0 +1,121 @@
+[
+  {
+    "name": "Ethanol",
+    "category": "Aroma Chemicals",
+    "casNumber": "64-17-5",
+    "description": "Sample listing for demonstration. Ethanol is a widely used solvent and carrier in fragrance and flavour work.",
+    "sourceNote": "SAMPLE DATA for demonstration only. The CAS number is a public chemical identifier. This is not an Aquila Organics product listing."
+  },
+  {
+    "name": "Linalool",
+    "category": "Aroma Chemicals",
+    "casNumber": "78-70-6",
+    "description": "Sample listing for demonstration. Linalool is a terpene alcohol widely used in fragrance.",
+    "sourceNote": "SAMPLE DATA for demonstration only. The CAS number is a public chemical identifier. This is not an Aquila Organics product listing."
+  },
+  {
+    "name": "Benzyl Acetate",
+    "category": "Aroma Chemicals",
+    "casNumber": "140-11-4",
+    "description": "Sample listing for demonstration. Benzyl acetate is an ester with a sweet, jasmine-like character.",
+    "sourceNote": "SAMPLE DATA for demonstration only. The CAS number is a public chemical identifier. This is not an Aquila Organics product listing."
+  },
+  {
+    "name": "D-Limonene",
+    "category": "Aroma Chemicals",
+    "casNumber": "5989-27-5",
+    "description": "Sample listing for demonstration. D-limonene is a citrus-smelling terpene found in citrus peel oils.",
+    "sourceNote": "SAMPLE DATA for demonstration only. The CAS number is a public chemical identifier. This is not an Aquila Organics product listing."
+  },
+  {
+    "name": "Citral",
+    "category": "Aroma Chemicals",
+    "casNumber": "5392-40-5",
+    "description": "Sample listing for demonstration. Citral is a citrus aldehyde with a strong lemon character.",
+    "sourceNote": "SAMPLE DATA for demonstration only. The CAS number is a public chemical identifier. This is not an Aquila Organics product listing."
+  },
+  {
+    "name": "Geraniol",
+    "category": "Aroma Chemicals",
+    "casNumber": "106-24-1",
+    "description": "Sample listing for demonstration. Geraniol is a terpene alcohol with a rose-like character.",
+    "sourceNote": "SAMPLE DATA for demonstration only. The CAS number is a public chemical identifier. This is not an Aquila Organics product listing."
+  },
+  {
+    "name": "Coumarin",
+    "category": "Aroma Chemicals",
+    "casNumber": "91-64-5",
+    "description": "Sample listing for demonstration. Coumarin is an aroma chemical with a sweet, hay-like character.",
+    "sourceNote": "SAMPLE DATA for demonstration only. The CAS number is a public chemical identifier. This is not an Aquila Organics product listing."
+  },
+  {
+    "name": "Eugenol",
+    "category": "Aroma Chemicals",
+    "casNumber": "97-53-0",
+    "description": "Sample listing for demonstration. Eugenol is a phenolic aroma chemical with a clove-like character.",
+    "sourceNote": "SAMPLE DATA for demonstration only. The CAS number is a public chemical identifier. This is not an Aquila Organics product listing."
+  },
+  {
+    "name": "Phenylethyl Alcohol",
+    "category": "Aroma Chemicals",
+    "casNumber": "60-12-8",
+    "description": "Sample listing for demonstration. Phenylethyl alcohol is an aroma chemical with a rose-like character.",
+    "sourceNote": "SAMPLE DATA for demonstration only. The CAS number is a public chemical identifier. This is not an Aquila Organics product listing."
+  },
+  {
+    "name": "Methyl Dihydrojasmonate",
+    "category": "Aroma Chemicals",
+    "casNumber": "24851-98-7",
+    "description": "Sample listing for demonstration. Methyl dihydrojasmonate is an aroma chemical with a soft, jasmine-like character.",
+    "sourceNote": "SAMPLE DATA for demonstration only. The CAS number is a public chemical identifier. This is not an Aquila Organics product listing."
+  },
+  {
+    "name": "Vanillin",
+    "category": "Flavour Ingredients",
+    "casNumber": "121-33-5",
+    "description": "Sample listing for demonstration. Vanillin is the principal flavour component of vanilla.",
+    "sourceNote": "SAMPLE DATA for demonstration only. The CAS number is a public chemical identifier. This is not an Aquila Organics product listing."
+  },
+  {
+    "name": "Ethyl Vanillin",
+    "category": "Flavour Ingredients",
+    "casNumber": "121-32-4",
+    "description": "Sample listing for demonstration. Ethyl vanillin is a flavour ingredient with a vanilla character.",
+    "sourceNote": "SAMPLE DATA for demonstration only. The CAS number is a public chemical identifier. This is not an Aquila Organics product listing."
+  },
+  {
+    "name": "Menthol",
+    "category": "Flavour Ingredients",
+    "casNumber": "2216-51-5",
+    "description": "Sample listing for demonstration. Menthol (L-menthol) is a flavour ingredient with a cooling, minty character.",
+    "sourceNote": "SAMPLE DATA for demonstration only. The CAS number is a public chemical identifier. This is not an Aquila Organics product listing."
+  },
+  {
+    "name": "Benzaldehyde",
+    "category": "Flavour Ingredients",
+    "casNumber": "100-52-7",
+    "description": "Sample listing for demonstration. Benzaldehyde is an aromatic aldehyde with a bitter-almond character.",
+    "sourceNote": "SAMPLE DATA for demonstration only. The CAS number is a public chemical identifier. This is not an Aquila Organics product listing."
+  },
+  {
+    "name": "Cinnamaldehyde",
+    "category": "Flavour Ingredients",
+    "casNumber": "104-55-2",
+    "description": "Sample listing for demonstration. Cinnamaldehyde is the main flavour component of cinnamon.",
+    "sourceNote": "SAMPLE DATA for demonstration only. The CAS number is a public chemical identifier. This is not an Aquila Organics product listing."
+  },
+  {
+    "name": "Ethyl Maltol",
+    "category": "Flavour Ingredients",
+    "casNumber": "4940-11-8",
+    "description": "Sample listing for demonstration. Ethyl maltol is a flavour ingredient with a sweet, caramel-like character.",
+    "sourceNote": "SAMPLE DATA for demonstration only. The CAS number is a public chemical identifier. This is not an Aquila Organics product listing."
+  },
+  {
+    "name": "Isoamyl Acetate",
+    "category": "Flavour Ingredients",
+    "casNumber": "123-92-2",
+    "description": "Sample listing for demonstration. Isoamyl acetate is an ester with a banana-like character.",
+    "sourceNote": "SAMPLE DATA for demonstration only. The CAS number is a public chemical identifier. This is not an Aquila Organics product listing."
+  }
+]

@@ -79,6 +79,7 @@ The Prisma CLI, the scripts and the test configs read `.env`. Next.js reads it a
 | `RATE_LIMIT_SALT` | Salt for the hashed IP and email keys used by the rate limits |
 | `AUTH_IP_HEADER`, `AUTH_TRUSTED_PROXIES` | Optional. How the client IP is read behind a proxy (see "Deployment" below) |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Optional. Used only by `npm run seed:admin` |
+| `DEMO_NOINDEX` | Optional. `1` on a demo deployment: robots.txt disallows everything and every response sends `noindex, nofollow` |
 | `E2E_PORT` | Optional. Port for the e2e server (integer 1-65535, default 3100). Read from the shell environment first, then `.env`; the shell wins (see "Running the tests") |
 
 `NEXT_PUBLIC_SITE_URL` is the only `NEXT_PUBLIC_` variable and holds no secret. Everything else is server-only (`src/lib/env.ts`) and must never be renamed to `NEXT_PUBLIC_`.
@@ -186,6 +187,8 @@ Uploaded product documents and enquiry attachments go through one storage interf
 | `npm run db:migrate` / `db:reset` / `db:generate` | `prisma migrate dev` (interactive), `prisma migrate reset --force` (wipes the **development** database), `prisma generate` |
 | `npm run seed:admin` | Creates the first `SUPER_ADMIN` (see above) |
 | `npm run import:products -- <file>` | Imports products as unverified drafts (see above) |
+| `npm run demo:seed [-- --with-job] [-- --force]` | Loads the labelled SAMPLE catalogue (17 well-known chemicals, published and verified) into a **demo** database; refuses a database that already holds real products unless `--force` |
+| `npm run demo:reset` | Removes only the sample products and the sample opening |
 | `npm run content:report` | Lists every content block still awaiting client confirmation or taken from the brief only |
 
 ### Running the tests
@@ -261,5 +264,6 @@ Page copy lives in `src/content/`. Every block carries a status (`verified`, `br
 - `docs/company-research.md`, `docs/content-verification.md`
 - `docs/design-system.md`, `docs/sitemap.md`, `docs/url-migration.md`, `docs/asset-inventory.md`
 - `docs/database-design.md`
+- `docs/demo/` the client demo kit: `demo-script.md`, `built-vs-roadmap.md`, `deploy-steps.md`
 - `docs/superpowers/specs/` and `docs/superpowers/plans/`
 - `docs/screenshots/` review captures (homepage at four widths; catalogue, RFQ and admin at 375 and 1280)
