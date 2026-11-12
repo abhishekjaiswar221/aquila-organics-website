@@ -133,6 +133,7 @@ export async function deleteApplication(_prev: ApplicationFormState, formData: F
       detail: { storageCleanup: "failed" },
     });
   }
-  refresh();
+  // No refresh(): it would re-render this (now deleted) application's page as Not found before the form
+  // can send the user back to the list.
   return { ok: true, message: "Application deleted." };
 }

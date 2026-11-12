@@ -16,6 +16,7 @@ const { superAdmin, administrator, salesManager } = ADMIN_USERS;
 
 // "Save recipients" plus a screen-reader-only ": <type>" suffix.
 const SAVE_AROMA = /^Save recipients\s*: Aroma chemicals quotations$/;
+const SAVE_CAREERS = /^Save recipients\s*: Careers applications$/;
 
 test.beforeEach(async ({ page }) => {
   await page.setExtraHTTPHeaders({ "x-forwarded-for": testIp() });
@@ -48,9 +49,19 @@ test.describe("admin settings @catalogue-write", () => {
       await expect(page.getByText(/valid email|invalid|not a valid/i).first()).toBeVisible();
       expect(await storedRecipients("AROMA_CHEMICALS")).toEqual([one, two]);
 
-      // Careers is an editable row like the others (empty until set).
-      await expect(page.getByLabel("Careers applications")).toBeEnabled();
-      await expect(page.getByLabel("Careers applications")).toHaveValue("");
+      // Careers is an editable row like the others: empty until set, then saved and shown after a reload.
+      const careers = page.getByLabel("Careers applications");
+      await expect(careers).toBeEnabled();
+      await expect(careers).toHaveValue("");
+      const careersAddress = `test-careers-${t}@notify.example.test`;
+      await expect(async () => {
+        await careers.fill(careersAddress.toUpperCase());
+        await page.getByRole("button", { name: SAVE_CAREERS }).click();
+        await expect(page.getByText("Saved. 1 recipient(s).")).toBeVisible({ timeout: 2_000 });
+      }).toPass();
+      expect(await storedRecipients("CAREERS")).toEqual([careersAddress]);
+      await page.reload();
+      await expect(page.getByLabel("Careers applications")).toHaveValue(careersAddress);
     } finally {
       await clearRecipients();
     }

@@ -120,6 +120,7 @@ test.describe("quality gates: robots.txt and sitemap.xml", () => {
       "/sustainability",
       "/sustainability/compliance",
       "/contact",
+      "/careers",
       ...APPLICATION_SLUGS.fragrances.map((s) => `/fragrances/${s}`),
       ...APPLICATION_SLUGS.flavours.map((s) => `/flavours/${s}`),
     ];
