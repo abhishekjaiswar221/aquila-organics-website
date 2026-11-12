@@ -18,6 +18,8 @@
     "db:generate": "prisma generate",
     "seed:admin": "tsx scripts/seed-admin.ts",
     "import:products": "tsx scripts/import-products.ts",
+    "demo:seed": "tsx scripts/demo.ts seed",
+    "demo:reset": "tsx scripts/demo.ts reset",
     "content:report": "tsx scripts/content-report.ts"
   },
   "dependencies": {
