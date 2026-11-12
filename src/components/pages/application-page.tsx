@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ActionButton } from "@/components/ui/action-button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { ImageFrame } from "@/components/ui/image-frame";
+import { applicationSlot } from "@/content/images";
 import { consultationHref } from "@/content/segments";
 import type { ApplicationRecord, SegmentRecord } from "@/content/types";
 import { Breadcrumbs } from "./breadcrumbs";
@@ -40,6 +41,8 @@ export function ApplicationPage({ segment, application }: { segment: SegmentReco
           </div>
           <div className="lg:col-span-5">
             <ImageFrame
+              slot={applicationSlot(segment.id, application.slug)}
+              sizes="(min-width: 1024px) 40vw, 100vw"
               ratio="4/5"
               alt={`${application.name} application imagery`}
               label={`${segment.id}: ${application.name} (supply or license)`}

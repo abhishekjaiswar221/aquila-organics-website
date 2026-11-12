@@ -1,0 +1,72 @@
+{
+  "/images/client/hor-logo-new.webp": {
+    "width": 800,
+    "height": 206,
+    "blurDataURL": "data:image/webp;base64,UklGRoAAAABXRUJQVlA4WAoAAAAQAAAADwAAAwAAQUxQSEEAAAAAQYgmJUoFQUFLNzQ2OABFABTV8Nc3PkVTc01RQlI3RBMAOr3LQAoICgoMFxAhGgINAFqJiR4JKzcuIyYqJC80HQBWUDggGAAAADABAJ0BKhAABAADgFolpAADcAD+9eDAAA=="
+  },
+  "/images/client/incense-and-bakhoor-main.webp": {
+    "width": 1333,
+    "height": 2000,
+    "blurDataURL": "data:image/webp;base64,UklGRrgAAABXRUJQVlA4IKwAAACwBACdASoQABgAPu1iqU2ppaOiMAgBMB2JbACdMoRwAkgPeYg3logcCRC0hzc0AP40eEQ+Jm0EZYgBGYouWs/nzRCGk4T5TcgIpzQydeHLBg8tPi8TjKBxh9FV0v8IASVmfb4sOc3T3ZYHrRjy7t4X7nSxf6b620TyTC4S3ynRR7wMD52VL/36t0bSs+22d4JPe+Rzoef1JJC/1QqQBc+/mquyMMnkcw7jAAAA"
+  },
+  "/images/stock/flavour-bakery.webp": {
+    "width": 1600,
+    "height": 2000,
+    "blurDataURL": "data:image/webp;base64,UklGRqAAAABXRUJQVlA4IJQAAABwBACdASoQABQAPu1iqU2ppaOiMAgBMB2JZgCdMoAlnhl3W3qFXu2WFty7AAD+g1IKsVCIT8vXSSq/UANMYIL6OV89NU3IH+ZgB549tnPpyr/+rEsmfbJ1jPJHsr8ia24Tn25yEM++rR0xi3VbFe4CbbGLVkw4uAaxF3V1sJ+MlJkknU1OIhPRhFJk2U/n6WP0gAAA"
+  },
+  "/images/stock/flavour-beverages.webp": {
+    "width": 1333,
+    "height": 2000,
+    "blurDataURL": "data:image/webp;base64,UklGRpIAAABXRUJQVlA4IIYAAABQAwCdASoQABgAA4BaJbACdMoR3AdC56LbVDlDpee+DvToAAD+55LasqgsIAQcMLR4Hkqieoy5Rw2cJXN5B/vM9SPpwJqh4avGejkSuLHpxsmmXHk8OMRZpIUXler3Pu4X4bpVWoGTwySpGowSVAsGAzRrUfhEMoXdueU11eQBQ5JWkEAAAA=="
+  },
+  "/images/stock/flavour-confectionery.webp": {
+    "width": 1333,
+    "height": 2000,
+    "blurDataURL": "data:image/webp;base64,UklGRqwAAABXRUJQVlA4IKAAAACQBACdASoQABgAPu1iqU2ppaOiMAgBMB2JZQDLLYua32feL4YRPYWg7DfI1QAA/ucokn/SIPdcy+/32DsWujAskDXvaGXGr/UIAr3P+o0+V08EHUksIrHFaMpbvNSVBhmngyjIXkXGU/NmQZD9KzvbKxH537N68V2UDaLMA3sRmTISXP+bcSYq36u89QAWao8E/PuL/feskBeWTX6moAAA"
+  },
+  "/images/stock/flavour-dairy.webp": {
+    "width": 1333,
+    "height": 2000,
+    "blurDataURL": "data:image/webp;base64,UklGRpIAAABXRUJQVlA4IIYAAABQBACdASoQABgAPu1iqU2ppaOiMAgBMB2JYgCdMoACTNnAaDSUzScvZXQAAP7abqn48oclRtRMl4xvKMEIhry52H09ip1L3e3o2RxscnllWoJZeaakF+TrDBd59QN/OiVN05CwgxgmpSdOHuv/3mgmCk7QBX1AlSLHOkj5jt8M2p5PUiPAAA=="
+  },
+  "/images/stock/flavour-savoury.webp": {
+    "width": 1333,
+    "height": 2000,
+    "blurDataURL": "data:image/webp;base64,UklGRrAAAABXRUJQVlA4IKQAAAAwBACdASoQABgAPu1iqU2ppaOiMAgBMB2JQBOgMYYWoEf2ak/feDWqiIAA/oPBXl+L7bEzXkOrylyo4jdc3pacAiU6EXYcr5jSzYQGivQV9O0KbRDebCfjmQi2FCiEVMsKgQxkhTudHgLo/hWD81uM13B1BqtdSfyotw/Y1wp6EHEfolyR50XUzwEY8ncEDtu9UVXyyqOrpjBQ0EBDAtKO+/QAAA=="
+  },
+  "/images/stock/fragrance-air-care.webp": {
+    "width": 1333,
+    "height": 2000,
+    "blurDataURL": "data:image/webp;base64,UklGRnwAAABXRUJQVlA4IHAAAAAQBACdASoQABgAPu1orU2ppqSiMAgBMB2JYwBTABcBvWPXvTYDQYTKAAD87lye8SDTsDh6Y4eLUd3muylouvCvcE3sFhwlhu/BAJXIUrOEb9FUpCc7U93P2+w6rmz0m/nTHB4ETVlrG+9C/vnMAAAA"
+  },
+  "/images/stock/fragrance-fabric-care.webp": {
+    "width": 1335,
+    "height": 2000,
+    "blurDataURL": "data:image/webp;base64,UklGRqIAAABXRUJQVlA4IJYAAABwBACdASoQABgAPu1iqU2ppaQiMAgBMB2JZgCdMoAloguNDMX1YJkQOJqIGAD29NOBFPHkPHpjzOCSuhycw2B0S5Cxa3sCUiBmnI5lXl6SlQJNKdJECtXsycSm82cTMZ30pN0ioWrrATPakRKcFCA7Wmd+BPiY1YDx+OuexvAQGXCRIJMYWYwHLa6PyxLFGpCUjU7pcAA="
+  },
+  "/images/stock/fragrance-fine-fragrance.webp": {
+    "width": 1333,
+    "height": 2000,
+    "blurDataURL": "data:image/webp;base64,UklGRogAAABXRUJQVlA4IHwAAADwAwCdASoQABgAPu1kqk4ppaQiMAgBMB2JQAALcavLHr+RvbPzfHQAAP7nKLFT7+kBUqVt70QC0FWOp3FeoNGa50ZulQFyaonnL/l9iBfQ7C+kMG0DUs2HL8zlPHb9ZW8ABWGE6CMfAGIPr4bB4HG+zSM+mj5kVvIIAAAA"
+  },
+  "/images/stock/fragrance-home-care.webp": {
+    "width": 1333,
+    "height": 2000,
+    "blurDataURL": "data:image/webp;base64,UklGRqoAAABXRUJQVlA4IJ4AAADwBACdASoQABgAPu1iqU2ppaOiMAgBMB2JbACdMoMYBsAwwBK0WHBUwF1ov60fsVgAu914ZBvyhTyrRucRC20cwWXnMIi84Q6shTsTqZNhYb1bkZWLmqScDy1KlAtRaLcKjbSfqg178hH+lkaxYzN/qGAgZ1RXU+lEjCI/DjHUgLjIYdNvE3E2Zoo1NoOfmZB4LPAZBhCobTQCxsUAAA=="
+  },
+  "/images/stock/fragrance-personal-care.webp": {
+    "width": 1333,
+    "height": 2000,
+    "blurDataURL": "data:image/webp;base64,UklGRqAAAABXRUJQVlA4IJQAAABwBACdASoQABgAPu1kqk2ppaQiMAgBMB2JZQC7AYwUtWVI9c/ATCVCdLaYgAD++qc50vS5/dEi8Y2MT67fP/VpE4p6cyovoL9OllVaeRvDHi1pbCxaphq17KjRZ3FCs5v6n8vzP9MtkGAyJJchplEA+A+avRvBdqbgh+7uCOYuWTUs33Rrexd80H1KNhqPUyJE4AAA"
+  },
+  "/images/stock/fragrance-section.webp": {
+    "width": 2000,
+    "height": 1333,
+    "blurDataURL": "data:image/webp;base64,UklGRnwAAABXRUJQVlA4IHAAAADwAQCdASoQAAsAA4BaJYwCw7DLzWeGbYAA/uuckdC2yMmc2p6mBKOfIW79kQFcRSuDwERRuJ8hoXfCO2AuEljLdZJFJXpJ7LvOCI0lu8zkRwsU21qX8Bl/IZIAY8N6Uh3qTnT+qCRJZ6oA/HKRAAAA"
+  },
+  "/images/stock/hero.webp": {
+    "width": 1333,
+    "height": 2000,
+    "blurDataURL": "data:image/webp;base64,UklGRroAAABXRUJQVlA4IK4AAAAwBQCdASoQABgAPu1iqU2ppaOiMAgBMB2JZACdMoMlsn/LsEXwJCTWmPmAseF0REzYAAD+t0nLxXFfXosxk5fLnGZlK+/2oxwE7mkl5zgUWU0g8qc+R5ovh6osYHHeoS3kVMfssZ1N/1e66CAO+1GEB1oPyKIPyogy2N8Y5slnmUwvWQkvq3+FBPGRFhtx/j2kAhVf5d9tdASFklFQsJx0AhJm36qxJwrKLq2AAAA="
+  }
+}

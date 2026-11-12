@@ -23,6 +23,7 @@ export function Manufacturing({ data }: Props) {
           </dl>
         </div>
         <ImageFrame
+          slot="manufacturing"
           ratio="3/2"
           alt="Illustrative image of laboratory glassware"
           label="manufacturing: use ONLY real Aquila site photos, not stock"

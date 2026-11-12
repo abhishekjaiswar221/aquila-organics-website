@@ -27,13 +27,21 @@ describe("SectionHeader", () => {
 });
 
 describe("ImageFrame", () => {
-  it("without src renders no img but keeps an accessible name", () => {
+  it("without a slot renders no img but keeps an accessible name", () => {
     render(<ImageFrame alt="Bakhoor chips" ratio="3/2" />);
     expect(screen.queryByRole("img", { name: "Bakhoor chips" })).toBeInTheDocument();
     expect(document.querySelector("img")).toBeNull();
   });
-  it("with src renders the image with alt", () => {
-    render(<ImageFrame alt="Lab glassware" ratio="4/5" src="/x.jpg" />);
-    expect(screen.getByAltText("Lab glassware")).toBeInTheDocument();
+  it("with a slot that has no registered photo (manufacturing) stays a placeholder", () => {
+    render(<ImageFrame slot="manufacturing" alt="Manufacturing placeholder" ratio="3/2" />);
+    expect(document.querySelector("img")).toBeNull();
+    expect(screen.getByRole("img", { name: "Manufacturing placeholder" })).toBeInTheDocument();
+  });
+  it("with a registered slot renders the photo using the registered alt text, not the placeholder alt", () => {
+    render(<ImageFrame slot="hero" alt="Placeholder alt" ratio="4/5" />);
+    const img = document.querySelector("img");
+    expect(img).not.toBeNull();
+    expect(img?.getAttribute("alt")).toMatch(/amber glass bottles/i);
+    expect(screen.queryByRole("img", { name: "Placeholder alt" })).toBeNull();
   });
 });
