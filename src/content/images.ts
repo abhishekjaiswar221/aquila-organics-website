@@ -45,26 +45,21 @@ export type ImageEntry =
 
 export const images: Partial<Record<ImageSlot, ImageEntry>> = {
   "hero": {
-    file: "/images/stock/hero.webp",
-    alt: "Amber glass bottles standing among scattered dried chamomile and lavender flowers on a pale surface",
+    file: "/images/stock/hero-eucalyptus.webp",
+    alt: "Dark amber apothecary jar on an arched brass tray with eucalyptus sprigs on a warm sand background",
     source: "stock",
     credit: {
-      photographer: "Tara Winstead",
+      photographer: "Alesia Kozik",
       site: "Pexels",
       license: "Pexels License",
-      pageUrl: "https://www.pexels.com/photo/bown-bottles-used-for-herbal-oils-6694216/",
+      pageUrl: "https://www.pexels.com/photo/glass-bottle-on-a-tray-7797102/",
     },
   },
   "fragrance-section": {
-    file: "/images/stock/fragrance-section.webp",
-    alt: "Stone bowl holding pale resin pieces and dried botanicals on a dark wooden table with a small spoon",
-    source: "stock",
-    credit: {
-      photographer: "Christina & Peter",
-      site: "Pexels",
-      license: "Pexels License",
-      pageUrl: "https://www.pexels.com/photo/ingredients-in-bowl-25676797/",
-    },
+    file: "/images/client/attars.webp",
+    alt: "Small glass attar and perfume bottles with gold caps among cherry blossom and cinnamon sticks",
+    source: "client",
+    origin: "https://aquilaorganics.com/images/media/fagrance/fine-fragrances/attars.jpg",
   },
   "fragrance-fine-fragrance": {
     file: "/images/stock/fragrance-fine-fragrance.webp",
@@ -181,6 +176,51 @@ export const images: Partial<Record<ImageSlot, ImageEntry>> = {
     alt: "Lit incense sticks standing in a holder in front of softly blurred warm lights",
     source: "client",
     origin: "https://aquilaorganics.com/images/media/fagrance/incense-bakhoor/incense-and-bakhoor-main.jpg",
+  },
+};
+
+/** One photo in a format gallery, captioned with the product format as the current Aquila site lists it. */
+export type GalleryItem = { file: string; alt: string; caption: string; origin: string };
+const OLD = "https://aquilaorganics.com/images/media/fagrance";
+
+/**
+ * Product-format photographs for the fragrance application pages, keyed by application slug. The captions are
+ * the formats the current Aquila website lists for each application. Only applications whose old-site photos are
+ * good enough are included; the others keep a single photo.
+ */
+export const galleries: Record<string, { heading: string; items: GalleryItem[] }> = {
+  "fine-fragrance": {
+    heading: "Product formats",
+    items: [
+      { file: "/images/client/perfumes-and-jasmine.webp", caption: "Perfumes", alt: "Glass perfume bottles of different shapes among white jasmine flowers", origin: `${OLD}/fragreance-main.jpg` },
+      { file: "/images/client/attars.webp", caption: "Attars", alt: "Small glass attar and perfume bottles with gold caps among cherry blossom and cinnamon sticks", origin: `${OLD}/fine-fragrances/attars.jpg` },
+      { file: "/images/client/roll-ons.webp", caption: "Roll-ons", alt: "Glass roll-on bottles beside white jasmine flowers and green leaves", origin: `${OLD}/fine-fragrances/roll-ons.jpg` },
+      { file: "/images/client/deodorant-spray.webp", caption: "Deodorants", alt: "A hand pressing a white spray bottle, releasing a fine mist against a blue background", origin: `${OLD}/fine-fragrances/deodorant-spray.jpg` },
+    ],
+  },
+  "air-care": {
+    heading: "Product formats",
+    items: [
+      { file: "/images/client/reed-diffuser.webp", caption: "Reed diffusers", alt: "Reed diffuser with rattan sticks in a glass bottle beside pink roses", origin: `${OLD}/air-care/reed-diffuser.jpg` },
+      { file: "/images/client/electric-diffuser.webp", caption: "Electric diffusers", alt: "Orange ceramic electric diffuser releasing a soft plume of mist", origin: `${OLD}/air-care/electric-diffuser.jpg` },
+      { file: "/images/client/scented-candles.webp", caption: "Scented candles", alt: "Lit scented candles in glass jars on a tray with rose petals and macarons", origin: `${OLD}/air-care/scented-candles.jpg` },
+    ],
+  },
+  "personal-care": {
+    heading: "Product formats",
+    items: [
+      { file: "/images/client/skin-care.webp", caption: "Skin care", alt: "Amber glass pump and dropper bottles arranged on a round mirror with dried flowers", origin: `${OLD}/personal-care/skin-care.jpg` },
+      { file: "/images/client/bath-care.webp", caption: "Bath care", alt: "Bath products, soap and soft white towels on a wooden surface", origin: `${OLD}/personal-care/bath-care.jpg` },
+      { file: "/images/client/hair-care.webp", caption: "Hair care", alt: "White hair-care bottles arranged on a neutral backdrop with smooth stones", origin: `${OLD}/personal-care/hair-care.jpg` },
+    ],
+  },
+  "incense-and-bakhoor": {
+    heading: "Product formats",
+    items: [
+      { file: "/images/client/bakhoor.webp", caption: "Bakhoor", alt: "Smoking bakhoor in a glass burner surrounded by oud wood chips", origin: `${OLD}/incense-bakhoor/bakhoor.jpg` },
+      { file: "/images/client/dhoop.webp", caption: "Dhoop and incense cones", alt: "An incense cone on a small dish among incense sticks and lavender sprigs", origin: `${OLD}/incense-bakhoor/dhoop.jpg` },
+      { file: "/images/client/scented-batti.webp", caption: "Scented batti", alt: "Two incense sticks burning in a holder with trails of smoke", origin: `${OLD}/incense-bakhoor/scented-batti.jpg` },
+    ],
   },
 };
 

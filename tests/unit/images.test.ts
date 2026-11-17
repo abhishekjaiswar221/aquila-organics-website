@@ -6,6 +6,7 @@ import {
   IMAGE_SLOTS,
   applicationSlot,
   getImage,
+  galleries,
   imageFileData,
   images,
   logo,
@@ -94,6 +95,36 @@ describe("application slots", () => {
   });
 });
 
+describe("galleries", () => {
+  const items = Object.entries(galleries).flatMap(([slug, g]) => g.items.map((item) => ({ slug, item })));
+
+  it("belong to real fragrance application pages", () => {
+    for (const slug of Object.keys(galleries)) expect(APPLICATION_SLUGS.fragrances, slug).toContain(slug);
+  });
+
+  it("every item exists on disk, is prepared, captioned, described and traceable to the old site", () => {
+    expect(items.length).toBeGreaterThanOrEqual(10);
+    for (const { slug, item } of items) {
+      const label = `${slug}: ${item.caption}`;
+      expect(existsSync(publicFile(item.file)), label).toBe(true);
+      expect(imageFileData(item.file), label).toBeDefined();
+      expect(statSync(publicFile(item.file)).size, label).toBeLessThan(600 * 1024);
+      expect(item.caption.length, label).toBeGreaterThan(2);
+      const words = item.alt.trim().split(/\s+/).length;
+      expect(words, label).toBeGreaterThanOrEqual(6);
+      expect(words, label).toBeLessThanOrEqual(25);
+      expect(item.origin, label).toMatch(/^https:\/\/aquilaorganics\.com\/images\/media\//);
+    }
+  });
+
+  it("does not repeat a photo within one gallery", () => {
+    for (const [slug, g] of Object.entries(galleries)) {
+      const files = g.items.map((i) => i.file);
+      expect(new Set(files).size, slug).toBe(files.length);
+    }
+  });
+});
+
 describe("credits document", () => {
   it("lists every stock photo's photo page", () => {
     const doc = readFileSync(path.resolve(__dirname, "../../docs/image-credits.md"), "utf8");
@@ -102,5 +133,7 @@ describe("credits document", () => {
       if (e.source === "client") expect(doc, slot).toContain(e.origin);
     }
     expect(doc).toContain(logo.origin);
+    for (const { origin } of Object.values(galleries).flatMap((g) => g.items)) expect(doc, origin).toContain(origin);
+    expect(doc).toMatch(/Licensing warning/);
   });
 });

@@ -77,6 +77,10 @@ async function main(): Promise<number> {
     }
   }
 
+  // Forget entries whose file has been removed from public/images.
+  for (const key of Object.keys(existing)) {
+    if (!existsSync(path.join(ROOT, "public", key))) delete existing[key];
+  }
   const sorted = Object.fromEntries(Object.entries(existing).sort(([a], [b]) => a.localeCompare(b)));
   writeFileSync(DATA_FILE, `${JSON.stringify(sorted, null, 2)}\n`);
   console.log(`images:prepare: ${count} images processed.`);

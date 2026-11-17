@@ -41,7 +41,7 @@ describe("ImageFrame", () => {
     render(<ImageFrame slot="hero" alt="Placeholder alt" ratio="4/5" />);
     const img = document.querySelector("img");
     expect(img).not.toBeNull();
-    expect(img?.getAttribute("alt")).toMatch(/amber glass bottles/i);
+    expect(img?.getAttribute("alt")).toMatch(/amber apothecary jar/i);
     expect(screen.queryByRole("img", { name: "Placeholder alt" })).toBeNull();
   });
 });
