@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SiteLogo } from "@/components/ui/site-logo";
 import { addresses, company, contacts, footerNav } from "@/content/site";
 import type { Address } from "@/content/types";
 
@@ -22,7 +23,7 @@ export function Footer() {
     <footer className="mt-auto bg-charcoal text-ivory">
       <div className="mx-auto grid max-w-7xl gap-12 px-6 py-16 md:grid-cols-3">
         <div>
-          <p className="text-display-md">{company.shortName}</p>
+          <SiteLogo onDark />
           <p className="mt-3 max-w-xs text-sm text-warm-grey">{company.tagline}</p>
         </div>
         <div className="space-y-6">

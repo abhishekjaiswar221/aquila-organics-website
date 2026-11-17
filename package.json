@@ -18,6 +18,7 @@
     "db:generate": "prisma generate",
     "seed:admin": "tsx scripts/seed-admin.ts",
     "import:products": "tsx scripts/import-products.ts",
+    "images:prepare": "tsx scripts/prepare-images.ts",
     "demo:seed": "tsx scripts/demo.ts seed",
     "demo:reset": "tsx scripts/demo.ts reset",
     "content:report": "tsx scripts/content-report.ts"
@@ -59,6 +60,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.5",
     "jsdom": "^31.0.0",
+    "sharp": "^0.35.5",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5",

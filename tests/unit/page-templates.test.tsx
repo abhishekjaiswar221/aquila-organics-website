@@ -70,15 +70,26 @@ describe("Breadcrumbs", () => {
 });
 
 describe("ApplicationPage", () => {
-  const minimal: ApplicationRecord = { slug: "air-care", name: "Air Care", summary: "Fragrances for air fresheners.", blocks: [] };
+  // home-care has no photo gallery, so a minimal record shows no extra section.
+  const minimal: ApplicationRecord = { slug: "home-care", name: "Home Care", summary: "Fragrances for home cleaning products.", blocks: [] };
 
   it("with only a summary renders the h1, the summary, the CTA and no empty section headings", () => {
     const { container } = render(<ApplicationPage segment={fragranceSegment} application={minimal} />);
-    expect(screen.getByRole("heading", { level: 1, name: "Air Care" })).toBeInTheDocument();
-    expect(screen.getByText("Fragrances for air fresheners.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Home Care" })).toBeInTheDocument();
+    expect(screen.getByText("Fragrances for home cleaning products.")).toBeInTheDocument();
     expect(screen.queryAllByRole("heading", { level: 2 })).toHaveLength(0);
     const cta = screen.getByRole("link", { name: /request a consultation/i });
-    expect(cta).toHaveAttribute("href", "/contact?type=FRAGRANCES&application=air-care");
+    expect(cta).toHaveAttribute("href", "/contact?type=FRAGRANCES&application=home-care");
+    expect(noSkips(headingLevels(container))).toBe(true);
+  });
+
+  it("shows a captioned product-format gallery under its own h2 for an application that has photos", () => {
+    const airCare: ApplicationRecord = { slug: "air-care", name: "Air Care", summary: "Fragrances for air fresheners.", blocks: [] };
+    const { container } = render(<ApplicationPage segment={fragranceSegment} application={airCare} />);
+    expect(screen.getByRole("heading", { level: 2, name: "Product formats" })).toBeInTheDocument();
+    for (const caption of ["Reed diffusers", "Electric diffusers", "Scented candles"]) {
+      expect(screen.getByText(caption)).toBeInTheDocument();
+    }
     expect(noSkips(headingLevels(container))).toBe(true);
   });
 

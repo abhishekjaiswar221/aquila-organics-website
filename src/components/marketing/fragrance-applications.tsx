@@ -22,6 +22,7 @@ export function FragranceApplications({ intro, applications, emphasis }: Props) 
           </div>
           <div className="lg:col-span-5 lg:col-start-8">
             <ImageFrame
+              slot="fragrance-section"
               ratio="3/2"
               alt="Fragrance ingredients and perfumery materials"
               label="fragrance: botanical + oud materials"

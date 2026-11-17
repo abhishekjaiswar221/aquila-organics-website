@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SiteLogo } from "@/components/ui/site-logo";
 import { company, contacts, headerNav } from "@/content/site";
 import { EnquiryLink } from "./enquiry-link";
 import { MegaMenu } from "./mega-menu";
@@ -21,8 +22,8 @@ export function Header() {
         </div>
       </div>
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-        <Link href="/" className="font-[family-name:var(--font-display)] text-2xl uppercase tracking-[0.12em]">
-          {company.shortName}
+        <Link href="/" aria-label={`${company.shortName} home`} className="inline-flex items-center">
+          <SiteLogo priority />
         </Link>
         <nav aria-label="Primary" className="hidden items-center gap-10 lg:flex">
           <MegaMenu />

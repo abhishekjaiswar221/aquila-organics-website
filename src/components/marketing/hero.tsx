@@ -25,6 +25,9 @@ export function Hero({ data }: { data: HeroData }) {
         </div>
         <div className="lg:col-span-5">
           <ImageFrame
+            slot="hero"
+            priority
+            sizes="(min-width: 1024px) 40vw, 100vw"
             ratio="4/5"
             alt="Hero image: perfumery ingredients and laboratory glassware"
             label="hero: ingredients + glassware (supply or license)"

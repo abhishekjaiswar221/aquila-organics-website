@@ -1,4 +1,5 @@
 import { ImageFrame } from "@/components/ui/image-frame";
+import { applicationSlot } from "@/content/images";
 import { SectionHeader } from "@/components/ui/section-header";
 import type { FlavourApp } from "@/content/home-business";
 import type { Block } from "@/content/types";
@@ -21,7 +22,7 @@ export function Flavours({ lead, applications, extra }: Props) {
         <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-5">
           {applications.map((a, i) => (
             <article key={a.id} className={i % 2 ? "lg:mt-10" : ""}>
-              <ImageFrame ratio="4/5" alt={`${a.data.name} flavour application`} label={`flavours: ${a.data.name.toLowerCase()}`} />
+              <ImageFrame slot={applicationSlot("flavours", a.id.replace(/^fl-/, ""))} sizes="(min-width: 1024px) 20vw, (min-width: 640px) 33vw, 50vw" ratio="4/5" alt={`${a.data.name} flavour application`} label={`flavours: ${a.data.name.toLowerCase()}`} />
               <h3 className="text-display-md mt-4">{a.data.name}</h3>
               <p className="mt-2 text-sm text-muted-foreground">{a.data.summary}</p>
             </article>

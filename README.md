@@ -187,6 +187,7 @@ Uploaded product documents and enquiry attachments go through one storage interf
 | `npm run db:migrate` / `db:reset` / `db:generate` | `prisma migrate dev` (interactive), `prisma migrate reset --force` (wipes the **development** database), `prisma generate` |
 | `npm run seed:admin` | Creates the first `SUPER_ADMIN` (see above) |
 | `npm run import:products -- <file>` | Imports products as unverified drafts (see above) |
+| `npm run images:prepare` | Resizes and compresses the photos in `assets/incoming/` into `public/images/` (WebP) and records their size and blur preview; then register each in `src/content/images.ts` |
 | `npm run demo:seed [-- --with-job] [-- --force]` | Loads the labelled SAMPLE catalogue (17 well-known chemicals, published and verified) into a **demo** database; refuses a database that already holds real products unless `--force` |
 | `npm run demo:reset` | Removes only the sample products and the sample opening |
 | `npm run content:report` | Lists every content block still awaiting client confirmation or taken from the brief only |
@@ -264,6 +265,7 @@ Page copy lives in `src/content/`. Every block carries a status (`verified`, `br
 - `docs/company-research.md`, `docs/content-verification.md`
 - `docs/design-system.md`, `docs/sitemap.md`, `docs/url-migration.md`, `docs/asset-inventory.md`
 - `docs/database-design.md`
+- `docs/image-credits.md` where every photo came from (stock photographer and licence, or the current Aquila site); `docs/asset-inventory.md` for image status per slot
 - `docs/demo/` the client demo kit: `demo-script.md`, `built-vs-roadmap.md`, `deploy-steps.md`
 - `docs/superpowers/specs/` and `docs/superpowers/plans/`
 - `docs/screenshots/` review captures (homepage at four widths; catalogue, RFQ and admin at 375 and 1280)
