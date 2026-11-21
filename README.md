@@ -35,11 +35,13 @@ The client-facing summary is `docs/demo/built-vs-roadmap.md`.
 - **The blog or news section** (listing, articles, search-engine data, feed).
 - **Launch hardening:** security headers, performance tuning, monitoring and backups, a final security review. The open items are listed in `docs/demo/deploy-steps.md`.
 - **Admin extras:** invitation emails (a super admin hands over a one-time password), a content CMS for page copy and certificates, deleting products or users, audit-log retention or export, and automatic purging of old job applications.
+- **Data retention and deletion:** no way to delete enquiries, attachments or users (no admin feature, script or retention job) and no retention periods set. Changing your own password is not audited. Enquiry references stop at 999,999 per year (allocation throws past that). See `docs/database-design.md`, "Known gaps".
 - **Real Aquila photographs.** The manufacturing section is still a placeholder on purpose: only real photos of Aquila's own sites may fill it.
 
 ### Content and decisions still open
 
 - **Content.** No real product is published: the 20 legacy products import as unverified drafts (the live demo shows sample data). The privacy notice, which now also covers job applicants, needs legal review and a retention period. See `docs/content-verification.md` for the full list of facts awaiting client confirmation.
+- **Careers inputs.** The careers page introduction wording needs confirming, the site launches with no openings (HR enters them in the admin), and the careers notification mailbox (`SiteSetting` `notification.recipients.CAREERS`) is empty: until the client names it, applications are stored but nobody is emailed. The privacy contact is currently `info@`.
 - **Image licensing.** Almost all photos taken from the current Aquila site look like commercial stock photography with no credit or licence. Confirm where they came from, or replace them, before launch (`docs/image-credits.md`).
 - **Two product decisions for the owner:** should document uploads and category renames on a published product require re-verification (today they go public at once), and should a content editor be able to take a published product offline (today any public edit unpublishes it until a super admin re-verifies it)?
 

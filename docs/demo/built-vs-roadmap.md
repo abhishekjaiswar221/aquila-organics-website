@@ -24,7 +24,7 @@ Content for one slide (or a one-page handout). Plain language, no promises beyon
 | Verified product list with CAS numbers | The imported legacy products are drafts only; we never publish unverified chemistry |
 | Company facts to confirm | Head office location, founding year, certificates and expiry dates, EcoVadis rating |
 | Approvals | Wording for Oud/Bakhoor, the shisha line and toll manufacturing; consent to name people |
-| Photography | The site currently uses neutral placeholders |
+| Photography | The site uses stock photos and images from the current site; Aquila's own photography should replace them (credits in `docs/image-credits.md`) |
 | Notification contacts | Who receives each type of enquiry; the correct flavours mailbox address |
 | Legal review | The privacy notice, which now also covers job applicants; a retention period for applicant data |
 | Accounts | Domain, hosting, production database, email provider, file storage |
