@@ -43,6 +43,26 @@ The client-facing summary is `docs/demo/built-vs-roadmap.md`.
 - **Image licensing.** Almost all photos taken from the current Aquila site look like commercial stock photography with no credit or licence. Confirm where they came from, or replace them, before launch (`docs/image-credits.md`).
 - **Two product decisions for the owner:** should document uploads and category renames on a published product require re-verification (today they go public at once), and should a content editor be able to take a published product offline (today any public edit unpublishes it until a super admin re-verifies it)?
 
+### Known limitations (found in reviews, not yet fixed)
+
+All are small. None exposes data; the review notes are in the plans under `docs/superpowers/plans/`.
+
+- **Job status buttons.** A stale browser tab can republish an opening that someone else has just closed, because the button does not compare the status it was rendered with.
+- **Submit race.** If an opening is unpublished and deleted at the instant a candidate submits an application for it, the candidate sees a generic error. Retrying works (it becomes a general application).
+- **No redirect on a slug change.** Changing the slug of a published product or opening makes the old URL answer 404.
+- **In-flight admin requests.** A request that is already running can finish just after its user is disabled. The last-super-admin guard still prevents any lockout.
+- **Change-password attempts are not limited.** The signed-in "change my password" action has no attempt limit (sign-in itself is limited).
+- **No admin two-factor sign-in and no password reset by email.** Only a super admin can reset a password (a new one-time password).
+
+### Before launch (not done yet)
+
+- **Email:** a verified sending domain with SPF, DKIM and DMARC records, and a deliverability test to Gmail and Outlook inboxes (spam placement included), once the Resend driver exists.
+- **Devices and accessibility:** real-device and cross-browser testing (the automated suite covers Chromium at four widths only) and a manual screen-reader pass of the main flows. Automated axe checks already pass on every page.
+- **Redirects:** run the redirect table against the live old site; each old URL should answer one 301 to the right page.
+- **Operations:** backups of Postgres and R2 with a tested restore, error monitoring and uptime checks. Nothing has been pushed to GitHub and there is no CI yet.
+- **Search:** set up Search Console and Bing Webmaster Tools and submit the sitemap after launch.
+- **Clean-up on a real deployment:** remove the sample data (`npm run demo:reset`), the test enquiries, and `DEMO_NOINDEX` (`docs/demo/deploy-steps.md`).
+
 ## Stack
 
 Next.js 16 (App Router, `cacheComponents`), TypeScript, Tailwind CSS 4, shadcn/ui, Lucide and `motion`, with PostgreSQL 16 through Prisma 7, Better Auth (email and password), Zod and React Hook Form. Tests use Vitest, Playwright and axe.
