@@ -39,12 +39,16 @@ Breakpoints: Tailwind defaults. The header switches to the mobile drawer below `
 ## Components
 
 - `ActionButton` (primary / secondary / link; renders a link when given `href`, otherwise a button with a required `onClick`)
-- `Eyebrow`, `SectionHeader`, `ImageFrame` (visible "Placeholder: ..." label in development only)
+- `Eyebrow`, `SectionHeader`
+- Images (`src/components/ui/`, registry in `src/content/images.ts`):
+  - `ImageFrame` takes a named `slot`. A registered photo renders with its own alt text, a blurred loading preview and responsive `sizes` (`priority` for the hero); a slot with no photo renders the neutral placeholder (a visible "Placeholder: ..." label in development only). The `manufacturing` slot is reserved for real Aquila photographs: a test rejects stock there.
+  - `ImageGallery` shows captioned product-format photos in even 4:5 tiles (used on four fragrance application pages); `SiteLogo` shows the logo from the current site, white on dark backgrounds via a CSS filter.
+  - Photos are prepared with `npm run images:prepare` and their sources are recorded in `docs/image-credits.md`.
 - Layout: `Header` (contact strip, wordmark, segment disclosure menu), `MobileDrawer` (native `<dialog>`), `Footer`, `SkipLink`
 - Motion: `Reveal` (see below)
 - Page templates (`src/components/pages/`), each taking plain content records and rendering only blocks that exist (hidden blocks never render, empty sections draw nothing):
   - `SegmentPage` (Fragrances and Flavours overviews: lead, a tile per application, segment notes, consultation link)
-  - `ApplicationPage` (h1, the verified summary, a labelled placeholder image, optional extra sections, related applications as an unheadinged navigation list, consultation link)
+  - `ApplicationPage` (h1, the verified summary, a photo (or a labelled placeholder) and, for four fragrance applications, a "Product formats" gallery, optional extra sections, related applications as an unheadinged navigation list, consultation link)
   - `ContentPage` (breadcrumb, h1, lead, ordered sections) and `CertificationsPage` (confirmed certificates only; expired ones under an explicit "Expired certificates" heading, never as current)
   - `PageSections` (paragraphs, lists, quotes), `Breadcrumbs` (labelled nav, last crumb is the current page) and `JsonLd` (shared safe serializer)
 - Forms (`src/components/forms/`): `form-fields.tsx` holds the field, attachment, honeypot and consent blocks shared by the RFQ form and the contact forms; `ContactForms` is a WAI-ARIA tablist of four independent forms (own submission token and state each)

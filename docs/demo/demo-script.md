@@ -53,6 +53,7 @@ who receives each notification, and creating or disabling users.
 ## Things to say honestly
 
 - The catalogue shown is sample data. A real catalogue needs Aquila's verified product list and CAS numbers.
+- The photography is free stock imagery plus some photos and the logo taken from the current website; real photos of Aquila's own sites and laboratory should replace them, and the old-site photos' licences still need confirming.
 - Emails are not sent in this demo (they are logged only); real sending is connected when the client's email
   account exists.
 - Page copy and certificates are still maintained by us in code; making them editable by staff is a later,

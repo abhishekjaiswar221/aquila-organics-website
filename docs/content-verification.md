@@ -50,7 +50,9 @@ Capacities, lab description, customers, export volumes, awards, certificate deta
 
 ## G. Images/documents
 
-Replace: all placeholder category images, "Demo Site" logo alt, Joomla placeholders. Keep subject to client confirmation: logos, Hattali photo, five incense/bakhoor photos, 17 datasheets, MMCA SDS, certificate files. Stock imagery is never to be presented as Aquila facilities.
+**Status after the image pass:** free stock photos (Pexels) are in place on the home page and the application pages, and the logo, the incense photo and the product-format gallery photos were taken from the current site. See `docs/image-credits.md` and `docs/asset-inventory.md`. **Open: almost all photos taken from the current site look like commercial stock photography with no credit or licence; the client or the old site's developer must confirm where they came from, or they must be replaced, before launch.** The manufacturing section stays a placeholder until real photos of the Ratnagiri and Wada sites arrive.
+
+Original note: replace all placeholder category images, "Demo Site" logo alt, Joomla placeholders. Keep subject to client confirmation: logos, Hattali photo, five incense/bakhoor photos, 17 datasheets, MMCA SDS, certificate files. Stock imagery is never to be presented as Aquila facilities.
 
 ## H. Sub-project 2: catalogue and RFQ
 

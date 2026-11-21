@@ -273,17 +273,18 @@ The RFQ acknowledgement email goes to whatever address the visitor types, so wit
 ## Layout
 
 ```
-src/app/(public)/      public routes: homepage, catalogue, RFQ, privacy, fragrances, flavours, about, innovation, sustainability, contact
-src/app/admin/         admin login and panel (products, enquiries)
-src/app/api/           Better Auth endpoint, admin attachment downloads
+src/app/(public)/      public routes: homepage, catalogue, RFQ, privacy, fragrances, flavours, about, innovation, sustainability, contact, careers
+src/app/admin/         admin login, change-password and panel (products, categories, enquiries, jobs, applications, settings, users, audit log)
+src/app/api/           Better Auth endpoint, admin attachment and CV downloads
 src/proxy.ts           product and application 404s, and the signed-out admin redirect
-src/components/        ui/, layout/, marketing/, pages/ (templates), motion/, catalogue/, forms/, admin/
-src/content/           typed page copy with verification status
-src/features/          products, enquiries and admin: queries, actions, validation
+src/components/        ui/ (incl. ImageFrame, ImageGallery, SiteLogo), layout/, marketing/, pages/ (templates), motion/, catalogue/, forms/, careers/, admin/
+src/content/           typed page copy with verification status; images.ts (photo registry), careers.ts
+src/features/          products, enquiries, contact, categories, careers, settings, users, demo and admin: queries, actions, validation
 src/lib/               auth, permissions, db, env, storage, email, rate limits, SEO helpers
 prisma/                schema and migrations
-scripts/               seed-admin, import-products
-data/                  legacy product data (imported as drafts)
+scripts/               seed-admin, import-products, demo (seed/reset), prepare-images, content-report
+data/                  legacy product data (imported as drafts) and the sample demo catalogue
+public/images/         optimised photos and logo (WebP); originals stay in assets/incoming (not committed)
 tests/unit, tests/integration, tests/e2e
 docs/                  research, verification, design system, database, sitemap, assets, specs, plans
 ```
