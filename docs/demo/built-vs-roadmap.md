@@ -15,6 +15,7 @@ Content for one slide (or a one-page handout). Plain language, no promises beyon
 | Users and roles | Five roles (super admin, administrator, sales manager, content editor, HR manager) with strict permissions, one-time passwords, forced first-login change, disable and reset |
 | Accountability | Audit log of every admin change, free of personal data |
 | Search and speed foundations | Sitemap, structured data, redirects from the old site, responsive layouts, accessibility checks on every page |
+| Photography | An image system (optimised, captioned, with sources recorded), free stock photography on the home page and the fragrance and flavour pages, and product-format galleries. Real Aquila photos drop in without code changes |
 | Quality | Automated tests across the site, the admin and the browser at four screen widths |
 
 ## Needs the client before launch
