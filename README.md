@@ -4,15 +4,17 @@ B2B website for Aquila Organics Private Limited, a manufacturer of fragrances, a
 
 ## Status
 
-Built so far:
+Last updated 2026-11-21. This section says what is built and what is not. The live deployment (what was tested on
+https://aquilaorganics.vercel.app/ and the launch to-do list) is in `docs/demo/deploy-steps.md`, "Production status".
+The client-facing summary is `docs/demo/built-vs-roadmap.md`.
+
+### Built
 
 - **Sub-project 1:** foundation, design system and homepage.
 - **Sub-project 2 (data layer, catalogue and RFQ):**
   - PostgreSQL schema and migrations (`docs/database-design.md`).
   - The aroma chemicals catalogue (`/aroma-chemicals`): search by name, product code or CAS number, category filter, sorting, pagination, product pages and document downloads.
   - A multi-product request for quotation (`/rfq`) with attachments, a confirmation page and a draft privacy notice (`/privacy`).
-  - A minimal admin (`/admin`) for publishing products and handling enquiries.
-- **Sub-project 4 (full admin):** product create and edit (with re-verification), categories and the imported-products review filter, product documents, notification recipients, user management with forced password change, and a database audit log. See "Admin" below.
   - `sitemap.xml` and `robots.txt`.
 - **Sub-project 3 (core business content pages):**
   - Fragrances and Flavours: two overviews and eleven application pages (`/fragrances/...`, `/flavours/...`).
@@ -20,18 +22,26 @@ Built so far:
   - A Contact page (`/contact`) with verified details and four message forms (fragrances, flavours, aroma chemicals, general). Each creates an enquiry of the matching type with no product lines, through the same pipeline as the quotation request: honeypot, per-IP and per-address rate limits, duplicate-submission protection, attachments, minimal acknowledgement email. `?type=` and `?application=` preselect a form.
   - Navigation, footer and homepage links point at the real pages. Old-site URLs for these pages redirect once each (`docs/url-migration.md`).
   - Page copy sits in typed modules under `src/content/`; `npm run content:report` lists every block still awaiting client confirmation.
+- **Sub-project 4 (full admin):** roles and permissions, product create and edit (a change to public content clears verification and takes a published product offline), categories and the imported-products review filter, product documents, notification recipients, user management with a one-time password and forced change at first sign-in, and a database audit log. See "Admin" below.
+- **Sub-project 5 (careers):** job openings managed in the admin, public `/careers` pages with an application form and CV upload, and an HR inbox (HR manager and super admin only) with audited CV download and manual deletion. See "Careers" below.
+- **Demo kit:** a labelled sample catalogue (`npm run demo:seed`, `npm run demo:reset`), a `DEMO_NOINDEX` setting for a demo deployment, a demo script, a built-vs-roadmap page and deploy steps (`docs/demo/`).
+- **Images:** an image pipeline (`npm run images:prepare`, registry in `src/content/images.ts`), free stock photography on the hero, fragrance and flavour sections and application pages, the logo and some product-format photos taken from the current Aquila site, and "Product formats" galleries on four fragrance pages. Sources and licences are in `docs/image-credits.md`.
+- **Live demo deployment:** a Vercel + Neon + Cloudflare R2 demo (`docs/demo/deploy-steps.md`).
 
-Not built yet:
+### Not built yet
 
-- **Admin extras.** Not built: invitation emails (a super admin hands over a one-time password), a content CMS for page copy, deleting products or users, and audit-log retention or export.
-- **Storage and email.** Both use local development drivers only (`STORAGE_DRIVER=local`, `EMAIL_DRIVER=dev`):
-  - Uploaded files go to `./storage/uploads`.
-  - "Sent" emails are written as JSON files to `./storage/outbox`, and nothing leaves the machine.
-  - A Cloudflare R2 storage driver exists (`STORAGE_DRIVER=r2` with `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` and `R2_BUCKET`, all required only for that driver; the server refuses to start without them). **It has only been tested against a mocked client and has not been exercised against a live R2 account.** Verify upload, download and delete against a real bucket before relying on it.
-  - There is no Resend integration yet. Do not enable a real email provider before reading "Email abuse limits" below.
-- **Content.** No product is published: the 20 legacy products import as unverified drafts. The privacy notice needs legal review. See `docs/content-verification.md` for the full list.
+- **Real email.** Only the `dev` driver exists (`EMAIL_DRIVER=dev`): "sent" emails are written as JSON files to `./storage/outbox` (or just logged on a deployment) and nothing is delivered. There is no Resend integration yet. Do not enable a real email provider before reading "Email abuse limits" below.
+- **Cloudflare R2 storage** (`STORAGE_DRIVER=r2` with `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` and `R2_BUCKET`, all required only for that driver; the server refuses to start without them) is built and was exercised once on the live demo, but upload, download and delete against a real bucket are not fully verified. See `docs/demo/deploy-steps.md`.
+- **The blog or news section** (listing, articles, search-engine data, feed).
+- **Launch hardening:** security headers, performance tuning, monitoring and backups, a final security review. The open items are listed in `docs/demo/deploy-steps.md`.
+- **Admin extras:** invitation emails (a super admin hands over a one-time password), a content CMS for page copy and certificates, deleting products or users, audit-log retention or export, and automatic purging of old job applications.
+- **Real Aquila photographs.** The manufacturing section is still a placeholder on purpose: only real photos of Aquila's own sites may fill it.
 
-Careers, the resources blog and the full admin and content management are later sub-projects (see `docs/sitemap.md`). Until the careers pages exist, the old `/careers` URL answers 404 (`docs/url-migration.md`).
+### Content and decisions still open
+
+- **Content.** No real product is published: the 20 legacy products import as unverified drafts (the live demo shows sample data). The privacy notice, which now also covers job applicants, needs legal review and a retention period. See `docs/content-verification.md` for the full list of facts awaiting client confirmation.
+- **Image licensing.** Almost all photos taken from the current Aquila site look like commercial stock photography with no credit or licence. Confirm where they came from, or replace them, before launch (`docs/image-credits.md`).
+- **Two product decisions for the owner:** should document uploads and category renames on a published product require re-verification (today they go public at once), and should a content editor be able to take a published product offline (today any public edit unpublishes it until a super admin re-verifies it)?
 
 ## Stack
 
